@@ -13,7 +13,10 @@ const EXTRA_PATH = [
 
 const env = { ...process.env, PATH: `${EXTRA_PATH}${path.delimiter}${process.env.PATH || ''}` };
 
+// Demo mode (demo/run.js): no outside tools are called; live data comes from demo/fixtures.js.
+const DEMO = !!process.env.WORK_CENTER_DEMO;
 function run(cmd, args, { timeout = 60_000 } = {}) {
+  if (DEMO) return Promise.reject(new Error('Demo mode: outside tools are switched off'));
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { env, timeout, maxBuffer: 64 * 1024 * 1024, cwd: os.homedir() }, (err, stdout, stderr) => {
       if (err) return reject(new Error(`${cmd} ${args[0] || ''}: ${(stderr || err.message).trim().slice(0, 400)}`));
@@ -153,6 +156,7 @@ async function settle(fn) {
 const { execFileSync } = require('node:child_process');
 const has = (bin) => { try { execFileSync(process.platform === 'win32' ? 'where' : 'which', [bin], { env, stdio: 'ignore' }); return true; } catch { return false; } };
 async function collectLive(config) {
+  if (DEMO) return require('../demo/fixtures').live();
   const off = (why) => async () => { throw Object.assign(new Error(why), { setup: true }); };
   const [gh, ji] = await Promise.all([
     settle(has('gh') ? () => github(config.github || {}) : off('GitHub needs the gh CLI (brew install gh, then gh auth login). See Settings.')),
@@ -194,4 +198,4 @@ async function moveToEngineering(config, key) {
   return { moved: true, key, to: cfg.engStatus };
 }
 
-module.exports = { parseJson, collectLive, mergePR, moveToEngineering, APPROVED_QA, run, env };
+module.exports = { parseJson, collectLive, mergePR, moveToEngineering, APPROVED_QA, run, env, DEMO };

@@ -9,7 +9,10 @@
     "web": "node src/server.js --open",
     "serve": "node src/server.js",
     "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac dir"
+    "dist:mac": "electron-builder --mac dir",
+    "demo": "node demo/run.js",
+    "demo:app": "node demo/run.js --app",
+    "screenshots": "node demo/run.js --no-open --shots"
   },
   "build": {
     "appId": "io.github.sslugic.workcenter",

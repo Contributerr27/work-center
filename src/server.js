@@ -143,15 +143,51 @@ function refreshAI() {
   if (aiRun.running) return aiRun;
   aiRun = { running: true, startedAt: new Date().toISOString(), error: null, finishedAt: null };
   // The prompt is passed inline: inside the packaged app its file is not readable by the CLI.
+  // Jira items Work Center already read go along, so story next steps and test ideas don't depend on the
+  // AI reaching Jira itself.
+  jiraContext().then((jira) => {
   const prompt =
-    `${fillPrompt(fs.readFileSync(path.join(ROOT, 'prompts', 'briefing.md'), 'utf8'))}\n\n---\n${extraRules()}\n` +
+    `${fillPrompt(fs.readFileSync(path.join(ROOT, 'prompts', 'briefing.md'), 'utf8'))}\n\n---\n${jira}${extraRules()}\n` +
     `Produce all four parts, writing each JSON file into ${PARTS}. ` +
     'Use subagents in parallel if available. Validate each file is valid JSON.';
-  engine.runOnce(config, prompt, { cwd: DATA, writes: 'edits', timeoutMs: 30 * 60_000 }).then((r) => {
+  return engine.runOnce(config, prompt, { cwd: DATA, writes: 'edits', timeoutMs: 30 * 60_000 });
+  }).catch((e) => ({ error: e.message })).then((r) => {
     aiRun = { ...aiRun, running: false, error: r.error, finishedAt: new Date().toISOString() };
+    // The AI sometimes writes a date-only or midnight-UTC "generatedAt", which reads as yesterday. Parts
+    // rewritten during this scan get the real finish time.
+    if (!r.error) {
+      for (const f of fs.existsSync(PARTS) ? fs.readdirSync(PARTS).filter((x) => x.endsWith('.json')) : []) {
+        const file = path.join(PARTS, f);
+        try {
+          if (fs.statSync(file).mtimeMs < new Date(aiRun.startedAt).getTime()) continue;
+          const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+          j.generatedAt = aiRun.finishedAt;
+          fs.writeFileSync(file, JSON.stringify(j, null, 2));
+        } catch { /* leave a part we can't read as it is */ }
+      }
+    }
     logRun({ kind: 'scan', title: 'AI scan: Slack, meetings, suggestions', startedAt: aiRun.startedAt, finishedAt: aiRun.finishedAt, result: r.error ? null : (r.text || 'Briefing refreshed').slice(0, 2000), error: r.error, cost: r.cost });
   });
   return aiRun;
+}
+
+// The person's open sprint stories, bugs and PRDs from the live Jira read, for the briefing prompt.
+async function jiraContext() {
+  try {
+    const j = (await live(false))?.jira?.data;
+    if (!j) return '';
+    const me = (config.owner?.name || '').toLowerCase();
+    const mine = (x) => !me || !x.assignee || x.assignee.toLowerCase() === me;
+    const slim = (x) => ({ key: x.key, title: x.title, type: x.type, status: x.status, priority: x.priority, idleDays: x.idleDays, url: x.url });
+    const stories = (j.sprint || []).filter((x) => x.category !== 'done' && mine(x)).map(slim).slice(0, 25);
+    const bugs = (j.bugs || []).map(slim).slice(0, 40);
+    const prds = (j.prdQa || []).map((x) => ({ ...slim(x), qaStatus: x.qaStatus, testPlan: x.testPlan })).slice(0, 10);
+    if (!stories.length && !bugs.length && !prds.length) return '';
+    return 'Jira items Work Center already read for you (use them even if you cannot reach Jira yourself):\n' +
+      `- Open sprint stories (for work.json "breakdowns"): ${JSON.stringify(stories)}\n` +
+      `- Bugs (sources for "testIdeas"; a fixed or open bug without a regression test is a test idea): ${JSON.stringify(bugs)}\n` +
+      `- PRDs in QA (sources for "testIdeas"): ${JSON.stringify(prds)}\n\n`;
+  } catch (e) { return ''; }
 }
 
 // Rules the person added in Settings, plus instruction files they chose to share with Work Center from
@@ -251,7 +287,7 @@ const refText = (ref) => (ref ? `\n\nThe user is pointing at this item (JSON, fr
 function spawnClaude(cmd, prompt, { resume, model } = {}) {
   const e = engine.current(config);
   if (!e) {
-    fs.writeFileSync(cmd.log, 'No AI CLI found. Install Claude Code, Cursor, Gemini CLI or Codex, then open Settings.');
+    fs.writeFileSync(cmd.log, process.env.WORK_CENTER_DEMO ? 'Demo mode: AI runs are switched off. Install Work Center normally to use your own AI.' : 'No AI CLI found. Install Claude Code, Cursor, Gemini CLI or Codex, then open Settings.');
     cmd.engine = null;
     return setImmediate(() => finishCommand(cmd));
   }
@@ -486,7 +522,8 @@ setInterval(() => { try { scanSlack(false); } catch (e) { scan.lastError = e.mes
 // One automatic try per day, so a failing scan doesn't loop. Settings: config.dailyScan
 // { enabled, fromHour, weekdaysOnly }.
 const dailyCfg = { enabled: true, fromHour: 7, weekdaysOnly: false, ...(config.dailyScan || {}) };
-let dailyTriedOn = null;
+const DAILY_FILE = path.join(DATA, 'daily-scan.json');
+let dailyTriedOn = (() => { try { return JSON.parse(fs.readFileSync(DAILY_FILE, 'utf8')).triedOn; } catch { return null; } })();
 function dailyScan() {
   if (!dailyCfg.enabled || aiRun.running) return;
   const now = new Date(), today = now.toDateString();
@@ -494,7 +531,8 @@ function dailyScan() {
   if (dailyCfg.weekdaysOnly && [0, 6].includes(now.getDay())) return;
   const stamps = Object.values(briefing()).map((p) => p?.generatedAt).filter(Boolean).sort();
   if (stamps.length && new Date(stamps[0]).toDateString() === today) return;
-  dailyTriedOn = today;
+  dailyTriedOn = today; // one automatic try per day, kept across app restarts
+  try { fs.writeFileSync(DAILY_FILE, JSON.stringify({ triedOn: today, at: now.toISOString() })); } catch { /* read-only data dir */ }
   refreshAI();
 }
 setTimeout(() => { try { dailyScan(); } catch (e) { /* retried next tick */ } }, 20_000).unref();

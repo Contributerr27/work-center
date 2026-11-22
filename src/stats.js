@@ -177,6 +177,7 @@ function rankFor(range, score) {
 
 async function fetchRemote(config, range) {
   const { from } = span(range);
+  if (process.env.WORK_CENTER_DEMO) return require('../demo/fixtures').stats(from.getTime());
   const errors = [];
   const settle = (name, p) => p.catch((e) => { errors.push(`${name}: ${e.message}`); return null; });
   const [gh, ji, bugs] = await Promise.all([

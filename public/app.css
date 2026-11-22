@@ -223,6 +223,17 @@ section.collapsed .sec-head:hover { opacity: 1; }
 .heat i.on { color: var(--amber); }
 .heat small { margin-left: 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
 .heat i { font-style: normal; color: var(--grey-bg); }
+/* Normal: five bars rising like a difficulty meter, filled up to today's level. */
+.heat-bars { gap: 3px; align-items: flex-end; height: 18px; }
+.heat-bars .hb { display: block; width: 5px; border-radius: 2px; background: var(--grey-bg); transition: background .3s; }
+.heat-bars .hb1 { height: 6px; } .heat-bars .hb2 { height: 9px; } .heat-bars .hb3 { height: 12px; } .heat-bars .hb4 { height: 15px; } .heat-bars .hb5 { height: 18px; }
+.heat-bars .hb.on { background: var(--blue); } .heat-bars .hb4.on, .heat-bars .hb5.on { background: var(--amber); }
+.heat-bars small { align-self: center; }
+/* Winter: snowflakes, frosted when off, deep blue when on. */
+.heat-flakes { gap: 3px; }
+.heat-flakes .hf { display: inline-grid; color: #c9d8e8; }
+.heat-flakes .hf svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.heat-flakes .hf.on { color: #1f5fa8; filter: drop-shadow(0 0 3px rgba(120, 180, 240, .6)); }
 #passed { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; pointer-events: none; }
 #passed[hidden] { display: none; }
 
@@ -270,13 +281,40 @@ section.collapsed .sec-head:hover { opacity: 1; }
 [data-theme="vice"] .heat i.on { color: #ffd23f; text-shadow: 0 0 10px rgba(255, 210, 63, .8); }
 [data-theme="vice"] #toast { background: #ff2e93; color: #fff; }
 [data-theme="vice"] .reader-box { background: #1e0f36; border: 1px solid #55338a; }
+/* "Step done" celebration. Each theme has its own: a clean card (Normal and theme packs, from their
+   colors), a frosted summit card (Winter), the neon mission banner (Vice). */
+#passed div { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 40px 22px; border-radius: 24px;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0, 0, 0, .22); animation: pass 1.9s ease-out both; min-width: 260px;
+  backdrop-filter: blur(22px) saturate(1.3); -webkit-backdrop-filter: blur(22px) saturate(1.3); }
+#passed .ps-ic { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: var(--green-bg); color: var(--green); margin-bottom: 4px; animation: ps-pop .6s cubic-bezier(.2, 1.4, .4, 1) .1s both; }
+#passed .ps-ic svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#passed .ps-ic svg path:last-child { stroke-dasharray: 30; stroke-dashoffset: 30; animation: ps-draw .5s ease-out .35s forwards; }
+#passed b { font-size: 26px; font-weight: 750; letter-spacing: -.01em; color: var(--text); }
+#passed span { font-size: 15px; color: var(--muted); }
+#passed small { color: var(--green); font-weight: 700; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+@keyframes pass { 0% { transform: translateY(14px) scale(.94); opacity: 0; } 14% { transform: none; opacity: 1; } 82% { opacity: 1; } 100% { transform: translateY(-6px); opacity: 0; } }
+@keyframes ps-pop { from { transform: scale(.4); opacity: 0; } }
+@keyframes ps-draw { to { stroke-dashoffset: 0; } }
+
+/* Winter: frosted glass, serif title, a summit flag in deep blue, a soft cold glow. */
+[data-theme="winter"] #passed { background: radial-gradient(closest-side, rgba(225, 238, 252, .55), transparent); }
+[data-theme="winter"] #passed div { background: rgba(255, 255, 255, .78); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-color: rgba(255, 255, 255, .9); box-shadow: 0 24px 60px rgba(31, 79, 134, .25), 0 0 0 6px rgba(255, 255, 255, .25); }
+[data-theme="winter"] #passed .ps-ic { background: linear-gradient(180deg, #e6f1fc, #cfe2f6); color: #1f4f86; box-shadow: inset 0 0 0 1px rgba(31, 79, 134, .15); }
+[data-theme="winter"] #passed .ps-ic svg path:last-child { stroke-dasharray: none; stroke-dashoffset: 0; animation: none; }
+[data-theme="winter"] #passed b { font-family: "Iowan Old Style", "Palatino", Georgia, serif; font-size: 30px; font-weight: 700; color: #13233a; }
+[data-theme="winter"] #passed span { color: #5f7189; font-style: italic; font-family: "Iowan Old Style", "Palatino", Georgia, serif; }
+[data-theme="winter"] #passed small { color: #c8102e; }
+
+/* Vice: the neon mission banner. */
 [data-theme="vice"] #passed { background: radial-gradient(closest-side, rgba(18, 6, 31, .78), transparent); }
-#passed div { text-align: center; display: flex; flex-direction: column; gap: 4px; animation: pass 1.9s ease-out both; }
-#passed b { font: italic 900 78px/1 "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; text-transform: uppercase; color: #ffd23f; text-shadow: 0 4px 0 #3a0d57, 0 0 40px rgba(255, 210, 63, .6); }
-#passed span { font: italic 800 26px "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; text-transform: uppercase; color: #fff; }
-#passed small { color: #3dffb0; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
-@keyframes pass { 0% { transform: scale(.7); opacity: 0; } 15% { transform: scale(1.04); opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #passed div { animation: none; } }
+[data-theme="vice"] #passed div { background: none; border: 0; box-shadow: none; padding: 0; gap: 4px; }
+[data-theme="vice"] #passed .ps-ic { background: none; color: #ffd23f; filter: drop-shadow(0 0 10px rgba(255, 210, 63, .8)); margin: 0; }
+[data-theme="vice"] #passed .ps-ic svg path:last-child { stroke-dasharray: none; stroke-dashoffset: 0; animation: none; }
+[data-theme="vice"] #passed b { font: italic 900 78px/1 "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; text-transform: uppercase; color: #ffd23f; text-shadow: 0 4px 0 #3a0d57, 0 0 40px rgba(255, 210, 63, .6); }
+[data-theme="vice"] #passed span { font: italic 800 26px "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; text-transform: uppercase; color: #fff; }
+[data-theme="vice"] #passed small { color: #3dffb0; letter-spacing: .2em; font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { #passed div, #passed .ps-ic, #passed .ps-ic svg path { animation: none !important; stroke-dashoffset: 0 !important; } }
 @media (max-width: 1100px) { #tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); } .tile .l small { display: none; } }
 
 /* ---------- Item buttons, chat chips, tasks, phone ---------- */
@@ -406,7 +444,7 @@ main { overflow-anchor: none; }
 .md code { font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 0 4px; }
 .md pre { margin: .4em 0 .7em; padding: 9px 11px; border-radius: 9px; background: var(--soft); border: 1px solid var(--line); overflow: auto; white-space: pre; }
 .md pre code { background: none; border: 0; padding: 0; }
-.md blockquote { margin: .4em 0 .7em; padding: 2px 0 2px 10px; border-left: 2px solid var(--line); color: var(--muted); }
+.md blockquote { margin: .4em 0 .7em; padding: 2px 0 2px 10px; box-shadow: inset 2px 0 0 var(--line); color: var(--muted); }
 .md hr { border: 0; border-top: 1px solid var(--line); margin: .7em 0; }
 .md a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
 .md-table { overflow: auto; margin: .4em 0 .7em; }

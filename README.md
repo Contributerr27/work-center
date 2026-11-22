@@ -1,126 +1,109 @@
 # Work Center
 
-One visual page for the start of the day: GitHub, Jira, Slack, suggested work and meetings.
+**Your workday on one screen, with an AI that already knows your tools.**
 
-## Run
+Work Center is a desktop app that turns the morning tab shuffle into a short, guided run through what needs you:
+pull requests, tickets, messages, meetings and the next steps on your own work. It uses the AI assistant and the
+logins you already have on your computer, so there is nothing new to sign up for and no data leaves your machine
+except through the tools you already use.
+
+![Work Center, the day view](docs/screenshots/day-normal.png)
+
+<sub>All screenshots use the built-in demo data (`npm run demo`): a made-up person at a made-up company.</sub>
+
+## The problem
+
+A typical morning goes like this: open GitHub to see which PRs need you, then Jira for the sprint and your bugs,
+then Slack for who asked what overnight, then the calendar, then try to remember what you were in the middle of.
+Every tool shows its own slice, none of them knows what matters to *you* today, and by the time you have a picture,
+half an hour is gone. Then the day keeps interrupting with the same loop.
+
+AI assistants help, but only once you've explained the situation to them, every time.
+
+## How Work Center solves it
+
+- **One page, in order.** The day is a short flow of steps (pull requests → test health → Jira → messages → your
+  work → meetings). The current step is open, the rest are folded. Finish one, press **Done · next**.
+- **The AI already has the context.** A morning scan reads your PRs, sprint, bugs, Slack threads and meetings and
+  writes verdicts ("good to merge", "wait: two tests fail"), reply drafts, meeting prep, a standup, the next steps
+  on each of your stories and tests worth adding.
+- **Act from where you are.** Every section has an AI bar: "approve the dependency bumps", "draft replies for
+  #payments-qa", "break this story down". Point the AI at any card with ✦, or right-click → **Ask AI**. Anything that
+  acts outside the app (approve, merge, comment, send) asks first.
+- **See the bigger picture.** Projects built from your Jira epics, a Growth & HR view that writes your self-review
+  from the work you actually did, and an AI Center with every run by day.
+
+| | |
+|---|---|
+| ![Next steps on your stories and tests worth adding](docs/screenshots/work-next-steps.png) | ![Projects from Jira epics](docs/screenshots/projects.png) |
+| **Your work:** AI replies with charts, your tasks, next steps on each story, tests worth adding | **Projects:** every epic with progress, deadlines, blockers (hover **Why?**), PRs and an AI brief |
+| ![AI Center](docs/screenshots/ai-center.png) | ![Growth and HR](docs/screenshots/growth-hr.png) |
+| **AI Center:** every AI run by day, with full transcripts | **Growth & HR:** feedback score, coach, org chart and a self-review written from your work |
+
+## Why it's good
+
+- **Minimal setup.** No accounts, no API keys, no server. It finds the AI tools already on your machine (Claude
+  Code, Cursor, Gemini CLI, Codex…), reads the connections you set up for them (MCP servers, rule files like
+  `CLAUDE.md`) and the CLIs you're logged into (`gh` for GitHub, `twg` for Jira). **Set me up** fills in your
+  profile for you.
+- **Local and private.** Everything it writes stays in a folder on your computer (`~/.daily-hq`). Nothing is posted
+  anywhere unless you press the button that says so.
+- **Your AI, your rules.** It runs the AI engine you already pay for, with your own instruction files, and keeps a
+  notes file of corrections you give it ("Thomas left the company") that every later run reads.
+- **Pleasant to use every day.** Themes (Normal, Winter, Vice, and ones anyone can [make and share](THEMES.md)),
+  an AI orb that is always one click away, a phone-style Messages panel, focus sessions and a wrap-up at the end of the day.
+
+![Winter theme](docs/screenshots/day-winter.png)
+
+## Get started
+
+You need Node 20+ and, for the AI parts, one AI coding CLI that's logged in (Claude Code works best).
 
 ```bash
+git clone https://github.com/sslugic/work-center.git
+cd work-center
 npm install
-npm start        # desktop app (Electron: macOS, Windows, Linux)
-npm run web      # same page in your browser, no Electron needed
-npm run dist:mac # builds dist/mac-arm64/Work Center.app (copy it to ~/Applications)
+npm start
 ```
 
-Run from source, macOS labels the app "Electron"; the built **Work Center.app** carries its own name and icon.
-App data (AI parts, PRD summaries, ticks) lives in `dataDir` from `config.json`, outside the app bundle.
+Open **Settings → Set me up**. It detects your AI tool, GitHub and Jira logins and fills in your profile. Then press
+**✦ AI scan** once; after that it runs on its own every morning.
 
-## How it gets data
+Other ways to run it:
 
-| Area | Source | When |
+```bash
+npm run demo        # try it on made-up data, nothing connected
+npm run web         # the same page in your browser, no Electron
+npm run dist:mac    # build Work Center.app (copy it to ~/Applications)
+```
+
+| Connection | What it adds | How |
 |---|---|---|
-| GitHub PRs, review requests | `gh` CLI | live, on open and on Refresh |
-| Jira PRDs in QA, mentions, sprint, bugs | `twg` CLI | live, on open and on Refresh |
-| PR verdicts, Slack follow-ups, meeting prep, standup, test ideas, next steps | Claude, written to `data/parts/*.json` | the AI scan |
+| An AI CLI (Claude Code, Cursor Agent, Gemini CLI, Codex) | the scan, every AI action, chats | already installed and logged in |
+| GitHub | PRs, reviews, CI health | `gh auth login` |
+| Jira | sprint, bugs, PRDs, projects | the `twg` CLI, logged in |
+| Slack, calendar, email, meeting notes | messages that need you, meeting prep | whatever your AI tool is connected to (MCP or account connectors) |
 
-The AI scan follows `prompts/briefing.md`. Run it from the **✦ AI scan** button (needs the
-Claude Code CLI logged in: `claude auth login`) or from a scheduled Claude task that follows the
-same prompt each morning.
-
-## Actions
-
-- **Merge** squash-merges a PR in the configured repo. It is enabled only when the AI verdict
-  says merge and the live checks agree (not a draft, CI green, mergeable); the server re-checks before merging.
-- **Nudge**, **Copy draft**, **Copy reply** copy a ready message; **Open** jumps to the thread or ticket.
-- **✓** hides an item; ticks on next steps are remembered (`data/state.json`).
-- **Read mode** shows the standup status in large type.
-- **PRDs in QA review** show where QA stands for each PRD:
-  - *Not started* → **✦ Start QA work** runs the AI on your PRD workflow (`prd.skill`, an amem skill) for that PRD
-    (checks your sources and the code first; writes the test plan, test cases,
-    PM comment, tickets, and automates Ready cases). It runs in the background from the QA repo (`jira.qaWorkDir`).
-  - *QA work done · waiting for PM approval* → **✦ Continue** picks up PM answers.
-  - *Done and approved* (QA Status Test Plan Approved or later) → **Move to Engineering →** moves the PRD to
-    PLANNED (IN ENG BACKLOG). The server re-reads the ticket and refuses unless it is approved and still in QA review.
-  - **View work** opens a summary with visuals: QA stepper, test-case split, pass/fail, edge-case matrix,
-    tickets, PRs, open questions, next steps and timeline. **✦ Build summary** (read-only) creates it.
-
-Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when you press the button. Your settings (repo, JQL, nudge thresholds) are in `~/.daily-hq/settings.json`; edit them in ⚙ Settings.
-
-## Work Center flow, AI commands and look
-
-- **Steps.** The day runs as five steps (Pull requests → Jira → Slack → Work → Meetings). The current step is open,
-  the rest are folded; **✓ Done · next** moves on, **Skip for now** parks a step until the others are finished, and a
-  meeting starting within 20 minutes jumps Meetings to the front. **Show all** unfolds everything.
-- **AI command bar.** Every section has a box to tell Claude what to do there, plus preset buttons
-  (for example **✦ Review & approve all** for PRs). Commands run in the background with the Claude Code CLI
-  and report back under the bar. Presets that act outside the app (approve, merge, comment, send, create) ask first.
-- **Look.** **Normal look / Vice look** switches themes. To use your own backdrop in the Vice look, save a picture as
-  `wallpaper.jpg` (or `.png` / `.webp`) in the data folder (`dataDir` in `config.json`). `build/make-bg.js` repaints the built-in one.
-
-## Command center extras
-
-- **✦ and ＋ on every item.** ✦ puts the item (Slack message, PR, ticket, idea, meeting) on that section's AI bar as a
-  chip, so your next message is about it; answers show as a chat and **Follow up** keeps the conversation going
-  (`claude --resume`). ＋ has Claude read the item, the whole thread and linked docs (Notion, Jira, GitHub…) and plan a
-  step-by-step task under **Mission 4 → My tasks** (files in `data/tasks/`). Planning is read-only.
-- **Slack phone.** Every 5 minutes on weekdays 8:00–19:00 a small-model scan (`prompts/slack-scan.md`, about $0.06 a
-  run) looks for new DMs, mentions and thread replies that need you. New ones ring the phone (bottom right) and a macOS
-  notification, and land in Mission 3. Settings: `slackScan` in `~/.daily-hq/settings.json` (`enabled`, `everyMinutes`, hours, `model`).
-- **🏆 Score.** Today / Week / Month scoreboard: Respect score and rank, PRs opened / reviewed / merged, stories done,
-  bugs filed and your open bugs by priority (`src/stats.js`, `public/stats.js`).
-- **⌨ Terminal** (Cmd+Shift+T). Claude Code in a themed terminal inside the app, started in `terminalCwd`
-  (defaults to `jira.qaWorkDir`). The session stays alive while the app runs.
-- AI commands run detached and log to `data/commands/`, so they keep going and still report back if the app restarts.
-
-## Control center (round 4)
-
-- **Menu bar + hotkey.** Work Center lives in the menu bar (count of what is waiting + workload stars). Closing the window
-  keeps it running; Cmd+Q quits. **Cmd+Shift+Space** from any app opens quick capture: Enter = AI command, Cmd+Enter = task.
-  Config: `hotkey`, `launchAtLogin` (off by default; also a menu checkbox), `morningScan` (runs the AI scan once each
-  weekday morning if the briefing is stale).
-- **Mission 2 · Damage Report** (`src/features/health.js`): nightly / scheduled workflows of the e2e repo as status
-  lights with a 10-run strip, failing tests by suite with flaky and new badges, Testera self-heal PRs. ✦ Triage
-  (read-only), Rerun (asks first). Testera data needs `TESTERA_API_KEY` in the app's environment.
-- **🤖 Autopilot** (`src/features/autopilot.js`): standing rules run on a schedule, each in its mission's live feed;
-  big Pause-all kill switch. Five templates ship switched off (approve dependency bumps, ship my green e2e PRs, nudge
-  quiet bugs, after-meeting tasks, refresh Slack summary). Rules marked ⚠ act outside the app and ask before enabling.
-- **Email and invites on the phone** (`src/features/mail.js`, `prompts/mail-scan.md`): Gmail threads that need a
-  reply every 15 minutes (`mailScan` in config, about $0.03 a check), shown with ✉ and also in Mission 3 (Messages).
-  Calendar invites (📅) get Accept / Maybe / Decline — only for the calendar that is connected.
-- **🌇 Wrap up** (`src/features/wrap.js`): Mission summary of the day; ✦ Write my wrap logs the work to amem, drafts
-  tomorrow's standup, suggests Jira updates (posted only when you press Post), and on Fridays drafts the weekly report.
-- **🎯 Focus** (`src/features/focus.js`): 25/50/90-minute focus missions on a task with a countdown HUD; only urgent
-  messages ring the phone; every 25 focused minutes adds 2 Respect. Optional `focus.onStart` / `focus.onEnd` shell
-  commands (e.g. `shortcuts run 'Work Focus On'`) toggle macOS Focus.
-- New features plug in as files: see `docs/FEATURES.md`.
-
-## Works for anyone
-
-`config.json` ships generic defaults only. Everything about the person lives in `~/.daily-hq/settings.json`
-(override the folder with `DAILYHQ_HOME`); data defaults to `~/.daily-hq/data`.
-
-- **⚙ Settings / first run:** finds the AI tools on the machine (Claude Code, Claude app, Cursor, Gemini CLI,
-  Codex/ChatGPT, Windsurf, Copilot CLI, VS Code, opencode, Aider, Ollama), their MCP servers and account
-  connectors, and the rule files written for them (CLAUDE.md, GEMINI.md, AGENTS.md, Cursor/Windsurf rules).
-  "Set me up" installs and connects amem, reads the Claude/git/GitHub identity, and has the AI fill the
-  profile (role, company, main repo, Jira site, Slack ids, work folder). Only empty fields are filled.
-- **AI engine** (`ai.engine`): Claude Code, Cursor Agent, Gemini CLI or Codex; automatic picks the first one
-  installed. Claude Code is the reference engine (live step feed, follow-up chats, small model for scans).
-- **Rules:** `ai.rules` plus any shared rule files (`ai.shareInstructions`) are added to every AI prompt.
-- **AI Center:** every AI run by day (`data/history/YYYY-MM-DD.jsonl`), month calendar, full transcripts.
-- **✦ bubble (⌘J):** chat or terminal, small/medium/full, file and image attachments (`data/uploads`).
-- **⌂ Home:** streak, rank, today at a glance, 30-day stats, 18-week activity map, AI actions, wins.
-- **Themes:** Normal, Vice, Winter. Add one in `THEMES` (public/flow.js) plus a `:root[data-theme=…]` block.
-- **◫ Projects:** one project per Jira epic you own, report, or work under, by quarter (from a "26Q4" / "Q4 2026"
-  tag in the title, the due date, or when it was resolved; open work always shows in the current quarter). Stories
-  and tasks with deadlines (due date, else sprint end), progress, blockers (blocked status, flagged, "is blocked by",
-  late), linked PRs, an AI brief of the conversation around it (read-only), and an AI assistant scoped to it.
-  The ◫ button on any Jira item on the desk opens its project. Settings `projects`: `epicJql`,
-  `includeParentsOfMine`, `sprintField`, `flaggedField`, `cacheMinutes`. Home shows this quarter's projects.
-- **🧭 Growth & HR:** org chart, a self-review written from your Jira, GitHub, work log, Slack and meeting notes for
-  a period (copy each answer), and AI feedback with a 0–100 score across seven areas from your work and your
-  manager conversations, with suggested improvements and a coach chat. Settings `hr`: `manager`, `reviewQuestions`,
-  `ratingScale`, `focus`. All of it stays in `data/hr` on this computer.
+Missing a connection? That part of the page says so and the rest keeps working.
 
 ## Themes
 
-Pick a theme from **Theme** in the sidebar. Anyone can make and share new ones (a folder with `theme.json`, optional CSS and pictures, no code); see [THEMES.md](THEMES.md). The example `theme-packs/aurora` ships with the app.
+Pick one from **Theme** in the sidebar. Anyone can build a theme without code: colors, wallpaper, icons, wording and a
+background effect, packed as a folder or .zip. See [THEMES.md](THEMES.md); you can also hand
+[docs/THEME-AI.md](docs/THEME-AI.md) to your AI and describe the theme you want.
+
+| | |
+|---|---|
+| ![Vice theme](docs/screenshots/day-vice.png) | ![Aurora theme pack](docs/screenshots/aurora.png) |
+
+## Help build it
+
+Work Center started as one engineer's morning routine, so today it fits engineering and QA best. The big next step
+is **role packs**: sections for managers, sales, customer support, product, HR and more. See [ROADMAP.md](ROADMAP.md)
+for the plan and the open issues for pieces you can pick up. New sections plug in as files, without touching the core:
+[docs/FEATURES.md](docs/FEATURES.md) explains how.
+
+- [docs/REFERENCE.md](docs/REFERENCE.md): everything the app does, section by section
+- [docs/FEATURES.md](docs/FEATURES.md): writing a feature or a new section
+- [THEMES.md](THEMES.md): making a theme
+- `npm run demo` and `npm run screenshots`: try changes on made-up data and refresh these screenshots

@@ -69,6 +69,7 @@ function pick(config) {
 }
 
 function current(config) {
+  if (process.env.WORK_CENTER_DEMO) return null; // demo mode: no AI runs
   const id = pick(config);
   if (!id) return null;
   const e = ENGINES[id];
@@ -79,6 +80,7 @@ function current(config) {
 // Spawn one headless run and resolve with the parsed answer.
 function runOnce(config, prompt, { small = false, cwd, timeoutMs = 4 * 60_000, writes, addDir, onSpawn } = {}) {
   const e = current(config);
+  if (!e && process.env.WORK_CENTER_DEMO) return Promise.resolve({ text: '', error: 'Demo mode: AI runs are switched off. Install Work Center normally to use your own AI.' });
   if (!e) return Promise.resolve({ text: '', error: 'No AI CLI found. Install Claude Code, Cursor, Gemini CLI or Codex, then open Settings.' });
   const model = small ? e.small : e.model;
   return new Promise((resolve) => {

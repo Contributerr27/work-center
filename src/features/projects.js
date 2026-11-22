@@ -99,6 +99,14 @@ function setup(ctx) {
 
   async function build() {
     const c = cfg();
+    if (process.env.WORK_CENTER_DEMO) { // demo mode: made-up epics run through the same mapping
+      const F = require('../../demo/fixtures').projects();
+      const projects = new Map(F.epics.map((e) => [e.key, epicOf(e)]));
+      const items = new Map([...projects.keys()].map((k) => [k, []]));
+      for (const k of F.children) items.get(k.parent?.key)?.push(itemOf(k, c));
+      for (const [k, p] of projects) Object.assign(p, roll(items.get(k)));
+      return { at: Date.now(), projects, items, prs: F.prs, error: null };
+    }
     const epicsRaw = await jqlAll(c.epicJql, EPIC_FIELDS, 200);
     const have = new Set(epicsRaw.map((e) => e.key));
     if (c.includeParentsOfMine) {

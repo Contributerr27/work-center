@@ -12,9 +12,10 @@ html.aic-open, html.aic-open body { overflow: hidden; }
 .aic-cal-head b { flex: 1; text-align: center; font-size: 14px; }
 .aic-nav { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 8px; width: 28px; height: 28px; cursor: pointer; font-size: 16px; line-height: 1; }
 .aic-nav:disabled { opacity: .35; cursor: default; }
-.aic-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 8px; }
+.aic-cal { min-width: 0; }
+.aic-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 8px; }
 .aic-dow { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--muted); padding-bottom: 2px; }
-.aic-cd { aspect-ratio: 1; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; position: relative; }
+.aic-cd { aspect-ratio: 1; min-width: 0; width: 100%; padding: 0; box-sizing: border-box; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; position: relative; }
 .aic-cd.empty { pointer-events: none; }
 .aic-cd:disabled { color: var(--muted); opacity: .45; cursor: default; }
 .aic-cd.has { background: var(--blue-bg); font-weight: 700; }

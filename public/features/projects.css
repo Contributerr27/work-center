@@ -52,7 +52,7 @@
 .prj-row.done .prj-tt { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
 .prj-row.blk { box-shadow: inset 3px 0 0 var(--red); }
 .prj-row.focus { background: var(--blue-bg); box-shadow: inset 3px 0 0 var(--blue); animation: prj-flash 1.6s ease-out 2; }
-@keyframes prj-flash { 0% { background: var(--blue); } 100% { background: var(--blue-bg); } }
+@keyframes prj-flash { 0% { background: color-mix(in srgb, var(--blue) 28%, var(--blue-bg)); } 100% { background: var(--blue-bg); } } /* a tint, so the row stays readable */
 .prj-type { text-align: center; font-size: 13px; color: var(--muted); }
 .prj-key { font-size: 12.5px; font-weight: 650; white-space: nowrap; }
 .prj-tt { font-size: 13.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -436,6 +436,7 @@ function setup(ctx) {
   let refreshing = null;
   let lastError = null;
   async function refresh() {
+    if (process.env.WORK_CENTER_DEMO) return (board = require('../../demo/fixtures').health());
     if (!repo) throw new Error('No repo: set github.repo (or health.repo) in config.json');
     const [wfs, info] = await Promise.all([workflows(), repoConfig()]);
     const [rows, heals, tera] = await Promise.all([

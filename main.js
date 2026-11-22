@@ -32,6 +32,8 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
       title: 'Work Center',
       icon: ICON, // window and taskbar icon on Windows and Linux
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+      // The red/yellow/green buttons sit inside the floating sidebar's top corner (nav.css leaves room).
+      ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 22, y: 24 } } : {}),
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1115' : '#f6f5f2',
       webPreferences: { contextIsolation: true, nodeIntegration: false },
     });

@@ -6,6 +6,8 @@ A theme is a folder (or a .zip of one) that anyone can build and install. No cod
 
 The app comes with an example theme, `theme-packs/aurora`. Copy it to start your own.
 
+**The quick way, with AI:** give your AI assistant [docs/THEME-AI.md](docs/THEME-AI.md) and one line about the theme you want, for example "Make a Work Center theme from docs/THEME-AI.md: a calm Japanese garden, moss green and paper white, falling petals." It writes the folder; you install it.
+
 ## The folder
 
 ```

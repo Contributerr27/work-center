@@ -286,7 +286,7 @@ function workload() {
 function celebrate(step) {
   if (!term('step')) return toast(`${step.name} done`);
   const el = $('passed');
-  el.replaceChildren(h('div', {}, h('b', {}, term('passed')), h('span', {}, stepName(step)), h('small', {}, `${term('score')} +`)));
+  el.replaceChildren(h('div', {}, h('i', { class: 'ps-ic' }, window.icon ? window.icon('done') : null), h('b', {}, term('passed')), h('span', {}, stepName(step)), h('small', {}, `${term('score')} +`)));
   el.hidden = false;
   clearTimeout(celebrate.t);
   celebrate.t = setTimeout(() => (el.hidden = true), 1900);
@@ -319,7 +319,18 @@ function renderFlow() {
   }));
   const left = FLOW.filter((s) => stepState(s.id) !== 'done').length;
   const wl = workload();
-  $('heat').replaceChildren(...[1, 2, 3, 4, 5].map((i) => h('i', { class: i <= wl.stars ? 'on' : '' }, '★')), h('small', {}, wl.label));
+  // Workload marks follow the theme: stars (Vice), snowflakes (Winter), rising difficulty bars (Normal).
+  // A theme pack uses its base theme's marks.
+  const heatKind = theme() === 'vice' ? 'stars' : theme() === 'winter' ? 'flakes' : 'bars';
+  const mark = (i) => {
+    const on = i <= wl.stars ? 'on' : '';
+    if (heatKind === 'bars') return h('i', { class: `hb hb${i} ${on}` });
+    if (heatKind === 'flakes') return h('i', { class: `hf ${on}` }, window.icon ? window.icon('flake') : '❄');
+    return h('i', { class: on }, '★');
+  };
+  $('heat').className = `heat heat-${heatKind}`;
+  $('heat').setAttribute('aria-label', `Workload ${wl.stars} of 5: ${wl.label}`);
+  $('heat').replaceChildren(...[1, 2, 3, 4, 5].map(mark), h('small', {}, wl.label));
   $('heat').title = wl.why;
   $('btn-all').textContent = showAll ? 'Focus mode' : 'Show all';
   HQ.setLabel($('btn-theme'), `Theme · ${(currentPack() || THEMES.find((t) => t.id === theme()) || THEMES[0]).name}`);

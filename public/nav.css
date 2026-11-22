@@ -77,7 +77,7 @@ html.panel #drag-strip { display: none; }
 /* ---------- Rounder app: the sidebar and full-page views float as rounded panels ---------- */
 :root { --r-xl: 22px; --r-lg: 18px; --r-md: 13px; --gap: 10px; }
 body { padding-left: calc(var(--side-w) + var(--gap) * 2); }
-#side { left: var(--gap); top: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
+#side { left: var(--gap); top: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); padding-top: 46px; border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
 #home-ov, #prj-ov, #hr-ov, #aic-ov { left: calc(var(--side-w) + var(--gap) * 2); top: var(--gap); right: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .12); }
 #home-ov .hm-box, #prj-ov .aic-box, #hr-ov .aic-box, #aic-ov .aic-box { height: 100%; }
 #aib-win[data-size="l"] { left: calc(var(--side-w) + var(--gap) * 2 + 24px); }

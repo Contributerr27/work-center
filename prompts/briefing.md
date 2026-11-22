@@ -73,7 +73,11 @@ whatever Jira access you have), break the 6 most important into 3–5 concrete n
 `done` only when evidence shows it is.
 C. Jira replies: tickets where someone mentioned {{FIRST}} or asked them a question in a comment
 in the last 7 days and they have not answered.
-No Jira access: empty breakdowns and jiraReplies.
+If you cannot reach Jira yourself, use the "Jira items Work Center already read" list at the end of this
+prompt: break down those open sprint stories from their titles and statuses plus what GitHub, Slack and
+meetings show, and turn its bugs and PRDs into test ideas. Leave `breakdowns` empty only when that list has no
+open stories, and `testIdeas` empty only when there is truly nothing worth adding. jiraReplies need Jira
+comments; leave it empty without access.
 
 ```json
 { "generatedAt": "",
