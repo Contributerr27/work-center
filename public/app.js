@@ -194,7 +194,7 @@ function renderJira() {
   const sprintRows = d.sprint.filter((i) => !filters.sprint || sprintBucket(i) === filters.sprint)
     .sort((a, b) => order.indexOf(sprintBucket(a)) - order.indexOf(sprintBucket(b)))
     .map((i) => { const b = sprintBucket(i); return h('a', { class: 'row', href: i.url, title: i.title },
-      h('i', { class: `pri c-${b}` }), h('span', { class: 't' }, h('b', {}, i.title.replace(/^(Testing Platform|Launch Readiness)\s*[:-]\s*/i, '')), h('small', {}, `${i.key} · ${i.status}`)), aiPill(jm[i.key]), itemActions('jira', refs.jira(i)), age(i.idleDays, 5, 10)); });
+      h('i', { class: `pri c-${b}` }), h('span', { class: 't' }, h('b', {}, i.title.replace(/^(Testing Platform|Launch Readiness)\s*[:-]\s*/i, '')), h('small', {}, `${i.key} · ${i.status}`)), b === 'blocked' ? h('button', { class: 'why-badge', 'data-why-key': i.key, 'data-why-text': `Status ${i.status}` }, '⛔ Why?') : null, aiPill(jm[i.key]), itemActions('jira', refs.jira(i)), age(i.idleDays, 5, 10)); });
   box.append(panel('My sprint', d.sprint.length, h('div', { class: 'body' }, stacked(groups, filters.sprint, (v) => { filters.sprint = v; renderJira(); }), sprintRows)));
 
   // Bugs I opened, grouped by who to chase

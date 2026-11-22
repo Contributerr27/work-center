@@ -12,22 +12,23 @@
 <link rel="stylesheet" href="nav.css">
 </head>
 <body>
+<div id="drag-strip" aria-hidden="true"></div>
 <aside id="side" aria-label="Main menu">
-  <div class="sd-brand"><img src="icon.png" alt=""><b>Work Center</b></div>
+  <div class="sd-brand"><img id="sd-logo" src="icon.png" alt=""><b>Work Center</b></div>
   <div class="sd-sec" id="nav-views">
-    <button id="nav-day" class="nv" data-ord="1" data-view="" title="Day: today's missions (⌘2)"><span class="nv-i">☀</span><span class="nv-l">Day</span></button>
-    <button id="btn-term" class="nv" data-ord="4" data-view="aic-ov" title="AI Center: every AI chat and run by day (⌘5; terminal: Cmd+Shift+T)"><span class="nv-i">✦</span><span class="nv-l">AI Center</span></button>
+    <button id="nav-day" class="nv" data-ord="1" data-view="" title="Day: today's missions (⌘2)"><span class="nv-i" data-i="day"></span><span class="nv-l">Day</span></button>
+    <button id="btn-term" class="nv" data-ord="4" data-view="aic-ov" title="AI Center: every AI chat and run by day (⌘5; terminal: Cmd+Shift+T)"><span class="nv-i" data-i="ai"></span><span class="nv-l">AI Center</span></button>
   </div>
   <div class="sd-lbl">Tools</div>
   <div class="sd-sec" id="nav-tools">
-    <button id="btn-score" class="nv" data-ord="13" title="Scoreboard: today, week, month"><span class="nv-i">🏆</span><span class="nv-l">Scoreboard</span></button>
+    <button id="btn-score" class="nv" data-ord="13" title="Scoreboard: today, week, month"><span class="nv-i" data-i="score"></span><span class="nv-l">Scoreboard</span></button>
   </div>
   <div class="sd-fill"></div>
   <div class="sd-sec" id="nav-bottom">
-    <button id="btn-phone" class="nv" title="Slack messages (checked every few minutes)"><span class="nv-i">📱</span><span class="nv-l">Messages</span><span id="phone-badge" class="pbadge" hidden></span></button>
-    <button id="btn-theme" class="nv" title="Pick a theme" aria-haspopup="menu"><span class="nv-i">🎨</span><span class="nv-l">Theme</span></button>
-    <button id="btn-settings" class="nv" title="Settings: your AI tools, connections, rules and profile"><span class="nv-i">⚙︎</span><span class="nv-l">Settings</span></button>
-    <button id="sd-collapse" class="nv" title="Collapse the menu"><span class="nv-i">⇤</span><span class="nv-l">Collapse</span></button>
+    <button id="btn-phone" class="nv" title="Slack messages (checked every few minutes)"><span class="nv-i" data-i="messages"></span><span class="nv-l">Messages</span><span id="phone-badge" class="pbadge" hidden></span></button>
+    <button id="btn-theme" class="nv" title="Pick a theme" aria-haspopup="menu"><span class="nv-i" data-i="theme"></span><span class="nv-l">Theme</span></button>
+    <button id="btn-settings" class="nv" title="Settings: your AI tools, connections, rules and profile"><span class="nv-i" data-i="settings"></span><span class="nv-l">Settings</span></button>
+    <button id="sd-collapse" class="nv" title="Collapse the menu"><span class="nv-i" data-i="collapse"></span><span class="nv-l">Collapse</span></button>
   </div>
 </aside>
 
@@ -42,8 +43,8 @@
     <span id="heat" class="heat"></span>
     <span id="stamp" class="muted"></span>
     <button id="btn-all" class="btn ghost" title="Show every section, or only the current step"></button>
-    <button id="btn-ai" class="btn ghost" title="Re-run the AI scan of Slack, meetings and suggestions">✦ AI scan</button>
-    <button id="btn-refresh" class="btn" title="Reload GitHub and Jira">↻ Refresh</button>
+    <button id="btn-ai" class="btn ghost" title="Re-run the AI scan of Slack, meetings and suggestions"><span class="bi" data-i="scan"></span>AI scan</button>
+    <button id="btn-refresh" class="btn" title="Reload GitHub and Jira"><span class="bi" data-i="refresh"></span>Refresh</button>
   </div>
 </header>
 
@@ -62,6 +63,7 @@
 <div id="toast" hidden></div>
 <div id="passed" hidden></div>
 <div id="phone" hidden></div>
+<script src="icons.js"></script>
 <script src="flow.js"></script>
 <script src="hq.js"></script>
 <script src="app.js"></script>

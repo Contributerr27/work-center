@@ -1,0 +1,14 @@
+/* Blocked-item tooltip. Tokens from app.css. */
+.why-badge { display: inline-flex; align-items: center; gap: 4px; border: 0; border-radius: 20px; padding: 1px 8px; background: var(--red-bg); color: var(--red); font: inherit; font-size: 11.5px; font-weight: 700; cursor: help; white-space: nowrap; }
+.why-badge:hover, .why-badge:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+#why-pop { position: fixed; z-index: 80; width: 360px; max-height: 60vh; overflow: auto; padding: 12px 14px; border-radius: 12px; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-top: 3px solid var(--red); box-shadow: 0 16px 40px rgba(0, 0, 0, .28); font-size: 13px; line-height: 1.45; display: flex; flex-direction: column; gap: 8px; }
+#why-pop[hidden] { display: none; }
+.why-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.why-x { border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.why-title { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; font-weight: 600; }
+.why-sec ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.why-sec p { margin: 0; white-space: pre-wrap; }
+.why-l { font-size: 10.5px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+[data-theme="winter"] #why-pop { background: rgba(250, 252, 255, .92); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+[data-theme="vice"] #why-pop { background: rgba(18, 7, 36, .94); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-top-color: #ff3fa4; box-shadow: 0 0 24px rgba(255, 63, 164, .25), 0 16px 40px rgba(0, 0, 0, .4); }

@@ -1,6 +1,9 @@
-/* Theme picker menu + theme extras. Tokens for each theme live in app.css (:root[data-theme=…]).
-   Winter: frosty sky, falling snow, a string of Christmas lights under the header, pine and red accents. */
-#theme-menu { position: fixed; z-index: 60; width: 280px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 16px 40px rgba(0, 0, 0, .25); display: flex; flex-direction: column; gap: 2px; }
+/* Themes: the picker menu, the shared icon styles, and each theme's skin across every view
+   (desk, Home, Projects, Growth & HR, AI Center, Settings, dialogs, sidebar, bubble).
+   Tokens live in app.css (:root[data-theme=…]); backdrops are public/themes/<theme>.jpg (build/make-art.js). */
+
+/* ---------- theme picker ---------- */
+#theme-menu { position: fixed; z-index: 60; width: 290px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 16px 40px rgba(0, 0, 0, .25); display: flex; flex-direction: column; gap: 2px; }
 #theme-menu[hidden] { display: none; }
 .tm-title { font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 8px 4px; }
 .tm-item { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; padding: 8px; border-radius: 10px; cursor: pointer; }
@@ -12,37 +15,138 @@
 .tm-t small { color: var(--muted); font-size: 12px; }
 .tm-ck { color: var(--blue); font-weight: 800; }
 
-/* ---------- Winter ---------- */
-[data-theme="winter"] body { background: linear-gradient(180deg, #b9d3ee 0, #d9e7f6 260px, #eef4fb 560px, #f5f8fc 100%) fixed; }
-#snow { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-[data-theme="winter"] #top, [data-theme="winter"] #tiles, [data-theme="winter"] main, [data-theme="winter"] #banner { position: relative; z-index: 1; }
-[data-theme="winter"] #greet { font: italic 700 38px/1.05 "Iowan Old Style", "Palatino Linotype", Georgia, serif; color: #c8102e; letter-spacing: -.01em; }
-[data-theme="winter"] #greet::after { content: " ❄"; color: #7fb2e5; font-style: normal; font-size: .7em; }
-[data-theme="winter"] #date { color: #1b7a4b; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
-/* a string of lights under the header */
-[data-theme="winter"] #top { position: relative; padding-bottom: 22px; }
-[data-theme="winter"] #top::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 14px; pointer-events: none;
-  background:
-    radial-gradient(circle at 10px 9px, #ff3b4e 0 4px, transparent 5px) 0 0 / 80px 14px repeat-x,
-    radial-gradient(circle at 30px 9px, #ffd23f 0 4px, transparent 5px) 0 0 / 80px 14px repeat-x,
-    radial-gradient(circle at 50px 9px, #2ecc71 0 4px, transparent 5px) 0 0 / 80px 14px repeat-x,
-    radial-gradient(circle at 70px 9px, #4fa3ff 0 4px, transparent 5px) 0 0 / 80px 14px repeat-x,
-    linear-gradient(#5a6b5a, #5a6b5a) 0 4px / 100% 1.5px no-repeat;
-  filter: drop-shadow(0 0 4px rgba(255, 210, 63, .55));
-  animation: hq-twinkle 2.4s ease-in-out infinite;
+/* ---------- icons (public/icons.js) ---------- */
+.ic { width: 1.2em; height: 1.2em; flex: none; fill: none; stroke: currentColor; stroke-width: var(--ic-w, 1.7); stroke-linecap: round; stroke-linejoin: round; vertical-align: -.22em; }
+.ic .a { fill: var(--ic-acc, currentColor); stroke: none; opacity: var(--ic-acc-o, .22); }
+.nv-i { display: inline-grid; place-items: center; color: var(--ic-col, var(--muted)); }
+.nv-i .ic { width: 20px; height: 20px; }
+.nv:hover .nv-i, .nv.on .nv-i { color: var(--ic-on, var(--blue)); }
+.nv.on .ic .a { opacity: var(--ic-acc-on, .35); }
+.bi { display: inline-grid; place-items: center; margin-right: 6px; }
+.bi .ic { width: 16px; height: 16px; }
+.btn .bi { vertical-align: -3px; }
+.vh { display: flex; align-items: center; gap: 10px; }
+.vh .ic { width: 22px; height: 22px; color: var(--ic-on, var(--blue)); }
+.hm-q { display: inline-flex; align-items: center; gap: 8px; }
+.hm-q .ic { width: 17px; height: 17px; color: var(--ic-on, var(--blue)); }
+
+/* full-page views share one surface per theme */
+:root { --glass: var(--panel); --glass-line: var(--line); --glass-blur: none; --view-bg: var(--bg); }
+#home-ov, #prj-ov, #hr-ov, #aic-ov { background: var(--view-bg); }
+
+/* ==================================================================================== */
+/* Normal: calm and professional. Neutral surfaces, crisp line icons, one blue accent.  */
+/* ==================================================================================== */
+:root[data-theme="normal"] { --ic-col: #6b6f79; --ic-on: var(--blue); --ic-acc: var(--blue); }
+@media (prefers-color-scheme: dark) { :root[data-theme="normal"] { --ic-col: #9aa0ab; } }
+[data-theme="normal"] #side { background: color-mix(in srgb, var(--panel) 92%, var(--bg)); }
+[data-theme="normal"] .nv { font-weight: 540; }
+[data-theme="normal"] #greet { font-weight: 720; letter-spacing: -.02em; }
+[data-theme="normal"] .btn.go { background: var(--blue); border-color: var(--blue); }
+[data-theme="normal"] .btn.go:hover { filter: brightness(1.06); }
+[data-theme="normal"] .prj-card, [data-theme="normal"] .hm-card { box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06); }
+
+/* ==================================================================================== */
+/* Winter: an alpine morning behind frosted glass; deep navy text, pine and berry red.  */
+/* ==================================================================================== */
+:root[data-theme="winter"] {
+  --ic-col: #2a5d96; --ic-on: #b3122e; --ic-acc: #ffffff; --ic-acc-o: .95; --ic-acc-on: 1; --ic-w: 1.6;
+  --glass: rgba(255, 255, 255, .72); --glass-line: rgba(255, 255, 255, .75); --glass-blur: blur(18px) saturate(1.25);
+  --view-bg: linear-gradient(180deg, rgba(236, 244, 252, .3), rgba(236, 244, 252, .58) 40%, rgba(240, 246, 252, .76)), url("/wallpaper?t=winter") center 38% / cover no-repeat fixed;
 }
-@keyframes hq-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
-[data-theme="winter"] .tile, [data-theme="winter"] .panel, [data-theme="winter"] .card, [data-theme="winter"] .cmd, [data-theme="winter"] .hm-card {
-  background: rgba(255, 255, 255, .82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-[data-theme="winter"] .tile.cur { border-color: transparent; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #c8102e; background-image: repeating-linear-gradient(135deg, rgba(200, 16, 46, .06) 0 10px, transparent 10px 20px); }
-[data-theme="winter"] .tile.cur .badge, [data-theme="winter"] section.cur .badge { background: #c8102e; color: #fff; }
-[data-theme="winter"] .tile.step-done .badge, [data-theme="winter"] section.step-done .badge { background: #1b7a4b; color: #fff; }
-[data-theme="winter"] .sec-head h2, [data-theme="winter"] .panel h3, [data-theme="winter"] .hm-ch h3 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; }
-[data-theme="winter"] .sec-head h2 { color: #13233a; }
-[data-theme="winter"] .btn.go { background: #c8102e; border-color: #c8102e; }
-[data-theme="winter"] #aib-fab { background: radial-gradient(circle at 30% 30%, #ff4d5e, #a50d26); box-shadow: 0 8px 24px rgba(200, 16, 46, .35); }
-[data-theme="winter"] .hm-hello h1 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; color: #c8102e; }
-[data-theme="winter"] .hm-hc.l1 { background: #cfe3d6; } [data-theme="winter"] .hm-hc.l2 { background: #8cc3a2; }
-[data-theme="winter"] .hm-hc.l3 { background: #3f9a67; } [data-theme="winter"] .hm-hc.l4 { background: #1b7a4b; }
+[data-theme="winter"] body { background: linear-gradient(180deg, rgba(236, 244, 252, .15), rgba(236, 244, 252, .48) 35%, rgba(240, 246, 252, .7)), url("/wallpaper?t=winter") center 38% / cover no-repeat fixed; }
+[data-theme="winter"] .ic .a { stroke: #2a5d96; stroke-width: .6; }
+#snow { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+html.aic-open #snow { z-index: 26; }
+[data-theme="winter"] #top, [data-theme="winter"] #tiles, [data-theme="winter"] main, [data-theme="winter"] #banner { position: relative; z-index: 1; }
+[data-theme="winter"] #greet { font: 600 40px/1.05 "Iowan Old Style", "Palatino Linotype", Georgia, serif; color: #12305a; letter-spacing: -.01em; text-shadow: 0 1px 0 rgba(255, 255, 255, .7); }
+[data-theme="winter"] #date { color: #1b6b47; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 11.5px; }
+/* frosted surfaces everywhere */
+[data-theme="winter"] .tile, [data-theme="winter"] .panel, [data-theme="winter"] .card, [data-theme="winter"] .cmd, [data-theme="winter"] .tcard,
+[data-theme="winter"] .hm-card, [data-theme="winter"] .prj-card, [data-theme="winter"] .prj-tile, [data-theme="winter"] .st-card, [data-theme="winter"] .ap-card,
+[data-theme="winter"] .wr-card, [data-theme="winter"] .sb-card, [data-theme="winter"] .hl-card, [data-theme="winter"] .hr-ans, [data-theme="winter"] .hr-imp,
+[data-theme="winter"] .hr-team, [data-theme="winter"] .hr-p, [data-theme="winter"] .hr-metrics > div, [data-theme="winter"] .aic-bub, [data-theme="winter"] .hm-tile {
+  background: var(--glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border-color: var(--glass-line); box-shadow: 0 1px 0 rgba(255, 255, 255, .8) inset, 0 10px 30px rgba(28, 68, 120, .1);
+}
+[data-theme="winter"] .aic-msg.me .aic-bub { background: #1f4f86; color: #fff; border-color: #1f4f86; }
+[data-theme="winter"] .hr-p.me { background: rgba(225, 236, 249, .88); border-color: #2a5d96; }
+[data-theme="winter"] #side, [data-theme="winter"] .aic-side, [data-theme="winter"] .aic-head, [data-theme="winter"] .aic-reply, [data-theme="winter"] #aib-win,
+[data-theme="winter"] .st-box, [data-theme="winter"] .ap-box, [data-theme="winter"] .wr-box, [data-theme="winter"] .sb-box, [data-theme="winter"] .fx-box, [data-theme="winter"] #ctx-menu, [data-theme="winter"] #theme-menu {
+  background: rgba(250, 252, 255, .82); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border-color: rgba(255, 255, 255, .8);
+}
+[data-theme="winter"] .aic-main { background: transparent; }
+[data-theme="winter"] .hm-hello h1, [data-theme="winter"] .prj-ht h1 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-weight: 600; color: #12305a; }
+[data-theme="winter"] .sec-head h2, [data-theme="winter"] .panel h3, [data-theme="winter"] .hm-ch h3, [data-theme="winter"] .prj-ch h3 { color: #12305a; }
+[data-theme="winter"] .vh { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-weight: 600; font-size: 20px; color: #12305a; }
+[data-theme="winter"] .sd-brand b { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; color: #12305a; font-size: 16.5px; }
+[data-theme="winter"] .nv.on { background: rgba(179, 18, 46, .08); color: #8e0f25; }
+[data-theme="winter"] .nv.on::before { background: linear-gradient(#d7263f, #8e0f25); }
+[data-theme="winter"] .btn { background: rgba(255, 255, 255, .78); border-color: rgba(42, 93, 150, .22); color: #12305a; }
+[data-theme="winter"] .btn:hover { border-color: rgba(42, 93, 150, .5); background: #fff; }
+[data-theme="winter"] .btn.ghost { background: rgba(255, 255, 255, .45); }
+[data-theme="winter"] .btn.go { background: linear-gradient(180deg, #cc2340, #9e0f28); border-color: #8e0f25; color: #fff; box-shadow: 0 1px 0 rgba(255, 255, 255, .25) inset, 0 6px 16px rgba(158, 15, 40, .28); }
+[data-theme="winter"] .tile.cur { border-color: transparent; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9), 0 0 0 4px #b3122e, 0 12px 30px rgba(158, 15, 40, .18); }
+[data-theme="winter"] .tile.cur .badge, [data-theme="winter"] section.cur .badge { background: #b3122e; color: #fff; }
+[data-theme="winter"] .tile.step-done .badge, [data-theme="winter"] section.step-done .badge { background: #1b6b47; color: #fff; }
+[data-theme="winter"] .prj-bar i.d { background: #1b6b47; }
+[data-theme="winter"] .pill.green { background: rgba(27, 107, 71, .12); color: #145537; }
+[data-theme="winter"] .prj-bar i.p, [data-theme="winter"] .hr-dots i.on { background: #2a5d96; }
+[data-theme="winter"] .hm-hc.l1 { background: #d3e3f4; } [data-theme="winter"] .hm-hc.l2 { background: #9cc0e6; }
+[data-theme="winter"] .hm-hc.l3 { background: #4f86c3; } [data-theme="winter"] .hm-hc.l4 { background: #1f5492; }
+[data-theme="winter"] .chip { background: rgba(42, 93, 150, .1); color: #1f4f86; }
+/* a fine string of lights under the header: small warm bulbs on a dark wire */
+[data-theme="winter"] #top { padding-bottom: 24px; }
+[data-theme="winter"] #top::after {
+  content: ""; position: absolute; left: 20px; right: 20px; bottom: 6px; height: 12px; pointer-events: none;
+  background:
+    radial-gradient(circle at 12px 7px, #ffdf8a 0 2.6px, rgba(255, 210, 110, .55) 3.4px, transparent 6px) 0 0 / 46px 12px repeat-x,
+    radial-gradient(circle at 35px 7px, #ff8f8f 0 2.6px, rgba(255, 120, 120, .45) 3.4px, transparent 6px) 0 0 / 46px 12px repeat-x,
+    linear-gradient(#41505f, #41505f) 0 3px / 100% 1px no-repeat;
+  animation: hq-twinkle 3s ease-in-out infinite;
+}
+@keyframes hq-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .65; } }
+[data-theme="winter"] #toast { background: #12305a; color: #fff; }
+
+/* ==================================================================================== */
+/* Vice: a neon coast at dusk behind smoked glass; pink-to-orange action, cyan detail.  */
+/* ==================================================================================== */
+:root[data-theme="vice"] {
+  --ic-col: #f6c9ea; --ic-on: #5ce6ff; --ic-acc: #ff3fa4; --ic-acc-o: .5; --ic-acc-on: .8; --ic-w: 1.8;
+  --glass: rgba(24, 9, 46, .62); --glass-line: rgba(255, 255, 255, .11); --glass-blur: blur(18px) saturate(1.3);
+  --view-bg: linear-gradient(180deg, rgba(12, 5, 24, .35), rgba(12, 5, 24, .72) 45%, rgba(12, 5, 24, .88)), url("/wallpaper?t=vice") center 30% / cover no-repeat fixed;
+}
+[data-theme="vice"] .ic { filter: drop-shadow(0 0 3px rgba(255, 63, 164, .55)); }
+[data-theme="vice"] .nv.on .ic, [data-theme="vice"] .vh .ic { filter: drop-shadow(0 0 5px rgba(92, 230, 255, .8)); }
+[data-theme="vice"] .prj-card, [data-theme="vice"] .hm-card, [data-theme="vice"] .prj-tile, [data-theme="vice"] .st-card, [data-theme="vice"] .ap-card, [data-theme="vice"] .wr-card,
+[data-theme="vice"] .sb-card, [data-theme="vice"] .hl-card, [data-theme="vice"] .hr-ans, [data-theme="vice"] .hr-imp, [data-theme="vice"] .hr-team, [data-theme="vice"] .hr-p,
+[data-theme="vice"] .hr-metrics > div, [data-theme="vice"] .aic-bub, [data-theme="vice"] .hm-tile {
+  background: var(--glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-color: var(--glass-line);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 14px 34px rgba(0, 0, 0, .35);
+}
+[data-theme="vice"] .aic-msg.me .aic-bub { background: linear-gradient(135deg, #ff3fa4, #ff7a3d); border-color: transparent; }
+[data-theme="vice"] .prj-card, [data-theme="vice"] .hm-card { position: relative; }
+[data-theme="vice"] .prj-card::before, [data-theme="vice"] .hm-card::before { content: ""; position: absolute; left: 14px; right: 14px; top: -1px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #ff3fa4, #ff9a3d 50%, #5ce6ff); opacity: .75; }
+[data-theme="vice"] #side, [data-theme="vice"] .aic-side, [data-theme="vice"] .aic-head, [data-theme="vice"] .aic-reply, [data-theme="vice"] #aib-win,
+[data-theme="vice"] .st-box, [data-theme="vice"] .ap-box, [data-theme="vice"] .wr-box, [data-theme="vice"] .sb-box, [data-theme="vice"] .fx-box, [data-theme="vice"] #theme-menu {
+  background: rgba(16, 6, 32, .84); backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3); border-color: rgba(255, 63, 164, .22);
+}
+[data-theme="vice"] .aic-main { background: transparent; }
+[data-theme="vice"] .vh, [data-theme="vice"] .hm-hello h1, [data-theme="vice"] .prj-ht h1, [data-theme="vice"] .prj-ch h3, [data-theme="vice"] .hm-ch h3 {
+  font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-style: italic; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
+[data-theme="vice"] .vh { font-size: 21px; color: #fff; text-shadow: 0 0 16px rgba(255, 63, 164, .55); }
+[data-theme="vice"] .hm-hello h1, [data-theme="vice"] .prj-ht h1 { color: #fff; text-shadow: 0 0 22px rgba(255, 63, 164, .5); }
+[data-theme="vice"] .prj-ch h3, [data-theme="vice"] .hm-ch h3 { color: #ffd0ef; font-size: 15px; }
+[data-theme="vice"] .sd-brand b { font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-style: italic; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; color: #fff; text-shadow: 0 0 12px rgba(255, 63, 164, .6); }
+[data-theme="vice"] .nv { color: #f3dcf2; }
+[data-theme="vice"] .nv.on { background: linear-gradient(90deg, rgba(255, 63, 164, .2), rgba(92, 230, 255, .06)); color: #fff; }
+[data-theme="vice"] .nv.on::before { background: linear-gradient(#ff3fa4, #ff9a3d); box-shadow: 0 0 10px #ff3fa4; }
+[data-theme="vice"] .prj-tile b { font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-style: italic; }
+[data-theme="vice"] .prj-bar i.d { background: linear-gradient(90deg, #3dffb0, #5ce6ff); }
+[data-theme="vice"] .prj-bar i.p { background: linear-gradient(90deg, #ff3fa4, #ff9a3d); }
+[data-theme="vice"] .hm-hc.l1 { background: #3b1a5f; } [data-theme="vice"] .hm-hc.l2 { background: #7a2a8c; }
+[data-theme="vice"] .hm-hc.l3 { background: #d0347f; } [data-theme="vice"] .hm-hc.l4 { background: #ff7a4a; box-shadow: 0 0 6px rgba(255, 122, 74, .7); }
+[data-theme="vice"] .btn:not(.go):hover { border-color: #5ce6ff; box-shadow: 0 0 12px rgba(92, 230, 255, .3); }
+
+/* reduced motion: no twinkle, no snow */
 @media (prefers-reduced-motion: reduce) { [data-theme="winter"] #top::after { animation: none; } #snow { display: none; } }

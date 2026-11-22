@@ -85,7 +85,7 @@ function renderPhone() {
   const badge = $('phone-badge');
   badge.textContent = unseen.length;
   badge.hidden = !unseen.length;
-  if (!phoneOpen) return (el.hidden = true);
+  if (!phoneOpen || !D) return (el.hidden = !phoneOpen);
   el.hidden = false;
   const scan = D.pings?.scan || {};
   const list = phoneQueue.length ? phoneQueue : pings.slice(0, 12);
@@ -107,7 +107,7 @@ function renderPhone() {
         p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
         h('button', { class: 'btn sm ghost ph-ok', title: 'Got it: remove from the phone', 'aria-label': 'Acknowledge and remove', onclick: () => dismissPings([p.id]) }, '✓'))
       : h('div', { class: 'ph-acts' },
-        p.kind !== 'fyi' && h('button', { class: 'btn sm go', onclick: () => { closePhone(); askAbout('slack', pingRef(p), p.draft ? (p.source === 'gmail' ? `Reply to this email with: "${p.draft}"` : `Reply in the thread with: "${p.draft}"`) : ''); } }, 'Reply'),
+        p.kind !== 'fyi' && h('button', { class: 'btn sm go', onclick: async () => { const pre = p.draft ? (p.source === 'gmail' ? `Reply to this email with: "${p.draft}"` : `Reply in the thread with: "${p.draft}"`) : ''; if (PANEL_MODE && await shellMain('askAbout', 'slack', pingRef(p), pre)) return; closePhone(); askAbout('slack', pingRef(p), pre); } }, 'Reply'),
         h('button', { class: 'btn sm', onclick: () => { closePhone(); createTask('slack', pingRef(p)); } }, '＋ Task'),
         p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
         h('button', { class: 'btn sm ghost ph-ok', title: 'Got it: remove from the phone', 'aria-label': 'Acknowledge and remove', onclick: () => dismissPings([p.id]) }, '✓'))))
@@ -144,6 +144,7 @@ async function answerInvite(p, answer, label) {
   }
 }
 async function closePhone() {
+  if (PANEL_MODE === 'phone') { shellPanel('phone', { open: false }); return; }
   phoneOpen = false;
   const ids = phoneQueue.map((p) => p.id);
   phoneQueue = [];
@@ -169,13 +170,13 @@ function playRing() {
 function checkNewPings(first) {
   const fresh = (D.pings?.items || []).filter((p) => !p.seen && !shownPings.has(p.id));
   fresh.forEach((p) => shownPings.add(p.id));
-  if (first || !fresh.length) return renderPhone();
+  if (first || !fresh.length || PANEL_MODE) return renderPhone();
   const quiet = (() => { try { return !!window.HQ_FOCUS_QUIET?.(); } catch (e) { return false; } })();
   const ring = quiet ? fresh.filter((p) => (p.urgency || 1) >= 3) : fresh;
   if (!ring.length) return renderPhone(); // held until focus ends; still in the phone list and badge
   phoneQueue = [...ring, ...phoneQueue];
-  phoneOpen = true;
   playRing();
+  shellPanel('phone', { open: true }).then((inPanel) => { if (!inPanel) { phoneOpen = true; renderPhone(); } });
   renderPhone();
 }
 
@@ -198,12 +199,14 @@ async function pollPings() {
 /* ---------- Header shortcuts ---------- */
 function renderHQ() {
   const r = window.respectToday?.();
-  $('respect').textContent = r == null ? '' : `${theme() === 'vice' ? 'Respect' : 'Score'} ${r}`;
+  $('respect').textContent = r == null ? '' : `${term('score')} ${r}`;
   $('respect').hidden = r == null;
 }
 let hqStarted = false;
 function initHQ() {
-  $('btn-phone').onclick = () => (phoneOpen ? closePhone() : openPhone());
+  // Messages open in a panel attached to the left of the window (in a browser: inside the page).
+  $('btn-phone').onclick = async () => { if (await shellPanel('phone', { toggle: true })) return; phoneOpen ? closePhone() : openPhone(); };
+  if (PANEL_MODE === 'phone') { phoneOpen = true; HQ.onRender(renderPhone); setInterval(pollPings, 8000); }
   $('btn-score').onclick = () => (window.openScoreboard ? window.openScoreboard('today') : toast('Scoreboard is not installed yet'));
   $('respect').onclick = () => window.openScoreboard?.('today');
   $('btn-term').onclick = () => (window.openAICenter ? window.openAICenter() : window.openTerminal?.());

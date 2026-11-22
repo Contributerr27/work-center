@@ -201,6 +201,32 @@ function setup(ctx) {
     return { epic: null, issue: key };
   });
 
+  // Why an item is blocked: the Jira signals (status, flag, "is blocked by" links, late), what the AI brief
+  // said about it, and the latest Jira comments and description (the usual place people explain a block).
+  const adfText = (n) => (!n ? '' : typeof n === 'string' ? n : n.type === 'text' ? n.text || '' : n.type === 'hardBreak' ? '\n'
+    : (n.content || []).map(adfText).join(['paragraph', 'heading', 'listItem', 'bulletList', 'orderedList'].includes(n.type) ? '\n' : '') + (['paragraph', 'heading', 'listItem'].includes(n.type) ? '\n' : ''));
+  const whyCache = new Map();
+  ctx.route('GET', '/api/projects/why', async ({ url }) => {
+    const key = url.searchParams.get('key') || '';
+    if (!KEY.test(key)) throw bad('Bad key');
+    const hit = whyCache.get(key);
+    if (hit && Date.now() - hit.at < 5 * 60_000) return hit.data;
+    const c = cache || { projects: new Map(), items: new Map() };
+    let item = null, epic = null;
+    for (const [ek, list] of c.items) { const f = list.find((i) => i.key === key); if (f) { item = f; epic = ek; break; } }
+    const [raw] = await jqlAll(`key = ${key}`, `summary,status,comment,description,issuelinks,${cfg().flaggedField}`, 1);
+    const comments = (raw?.comment?.comments || []).slice(-3).reverse().map((x) => ({ who: x.author?.displayName || '', at: x.created, text: adfText(x.body).trim().slice(0, 600) })).filter((x) => x.text);
+    const brief = epic ? readJson(briefFile(epic)) : null;
+    const ai = (brief?.blockers || []).filter((b) => b.key === key || String(b.text || '').includes(key)).map((b) => ({ text: b.text, owner: b.owner, url: b.url }));
+    const data = {
+      key, title: raw?.summary || item?.title, status: raw?.status?.name || item?.status, url: item?.url || `${site()}/browse/${key}`,
+      reasons: item?.why || [], blockedBy: item?.blockedBy || [], overdue: item?.overdue ? item.due : null,
+      ai, comments, description: adfText(raw?.description).trim().slice(0, 500),
+    };
+    whyCache.set(key, { at: Date.now(), data });
+    return data;
+  });
+
   ctx.route('POST', '/api/projects/brief', async ({ body }) => {
     const key = body?.key || '';
     if (!KEY.test(key)) throw bad('Bad key');

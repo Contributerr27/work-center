@@ -19,7 +19,7 @@ function makeJobs(ctx) {
     if (jobs[id]?.running) return jobs[id];
     const job = (jobs[id] = { id, running: true, startedAt: new Date().toISOString(), finishedAt: null, error: null });
     fs.mkdirSync(path.dirname(out), { recursive: true });
-    ctx.ai(prompt, { small, cwd: ctx.workDir(), addDir: ctx.DATA, timeoutMs }).then((r) => {
+    ctx.ai(prompt + (ctx.notes?.() || ''), { small, cwd: ctx.workDir(), addDir: ctx.DATA, timeoutMs }).then((r) => {
       let error = r.error;
       let data = null;
       if (!error) {

@@ -43,12 +43,12 @@ const FLOW = [
    HQ.overlay(id)                                        — get/create a full-window overlay div (close with HQ.closeOverlay(id)) */
 // Sidebar places: views on top (full-page overlays), tools below. `view` is the overlay a view opens.
 const NAV = {
-  'btn-home': { sec: 'nav-views', ord: 0, view: 'home-ov', name: 'Home' },
-  'btn-projects': { sec: 'nav-views', ord: 2, view: 'prj-ov', name: 'Projects' },
-  'btn-hr': { sec: 'nav-views', ord: 3, view: 'hr-ov', name: 'Growth & HR' },
-  'btn-focus': { sec: 'nav-tools', ord: 10, name: 'Focus' },
-  'btn-autopilot': { sec: 'nav-tools', ord: 11, name: 'Autopilot' },
-  'btn-wrap': { sec: 'nav-tools', ord: 12, name: 'Wrap up' },
+  'btn-home': { sec: 'nav-views', ord: 0, view: 'home-ov', name: 'Home', icon: 'home' },
+  'btn-projects': { sec: 'nav-views', ord: 2, view: 'prj-ov', name: 'Projects', icon: 'projects' },
+  'btn-hr': { sec: 'nav-views', ord: 3, view: 'hr-ov', name: 'Growth & HR', icon: 'growth' },
+  'btn-focus': { sec: 'nav-tools', ord: 10, name: 'Focus', icon: 'focus' },
+  'btn-autopilot': { sec: 'nav-tools', ord: 11, name: 'Autopilot', icon: 'autopilot' },
+  'btn-wrap': { sec: 'nav-tools', ord: 12, name: 'Wrap up', icon: 'wrap' },
 };
 const VIEWS = ['home-ov', 'prj-ov', 'hr-ov', 'aic-ov'];
 const HQ = {
@@ -69,7 +69,7 @@ const HQ = {
     const known = NAV[b.id] || {};
     const [icon, ...rest] = String(b.label).split(' ');
     const el = h('button', { id: b.id, class: `nv ${b.cls || ''}`, title: b.title || '', onclick: b.onclick, 'data-ord': known.ord ?? 50, 'data-view': known.view ?? null },
-      h('span', { class: 'nv-i' }, icon), h('span', { class: 'nv-l' }, known.name || rest.join(' ')));
+      known.icon && window.icon ? h('span', { class: 'nv-i', 'data-i': known.icon }, window.icon(known.icon)) : h('span', { class: 'nv-i' }, icon), h('span', { class: 'nv-l' }, known.name || rest.join(' ')));
     const sec = $(known.sec || 'nav-tools');
     const after = [...sec.children].find((x) => Number(x.dataset.ord ?? 50) > Number(el.dataset.ord));
     sec.insertBefore(el, after || null);
@@ -95,15 +95,39 @@ function store(key, value) {
   return null;
 }
 document.documentElement.dataset.theme = store('theme') || 'vice';
+// Side-panel windows (main.js) load this page with ?panel=ai|phone and show only that panel.
+const PANEL_MODE = new URLSearchParams(location.search).get('panel');
+if (PANEL_MODE) document.documentElement.classList.add('panel', `panel-${PANEL_MODE}`);
+// Ask the app shell to open/close a side panel or to run something in the main window; false in a browser.
+async function shellPanel(name, opts = {}) { if (PANEL_MODE && opts.open !== false) return false; try { return !!(await post('/api/ui/panel', { name, ...opts })).handled; } catch (e) { return false; } }
+async function shellMain(what, ...args) { try { return !!(await post('/api/ui/main', { do: what, args })).handled; } catch (e) { return false; } }
+window.shellPanel = shellPanel; window.shellMain = shellMain;
+// Another window changed the theme: follow it.
+window.addEventListener('storage', (e) => { if (e.key === 'theme' && e.newValue && e.newValue !== theme()) { document.documentElement.dataset.theme = e.newValue; window.dispatchEvent(new CustomEvent('themechange', { detail: e.newValue })); try { render(); } catch (err) { /* not ready */ } } });
 const theme = () => document.documentElement.dataset.theme;
 /* Themes: add one with an entry here plus a :root[data-theme="<id>"] block of tokens in app.css
    (and optional extras in public/features/themes.css). `fx` themes get their own effects there. */
 const THEMES = [
-  { id: 'normal', name: 'Normal', sub: 'Clean, follows light/dark', sw: ['#f6f5f2', '#2f6fdb', '#1f9d61'] },
-  { id: 'vice', name: 'Vice', sub: 'Neon nights, missions, respect', sw: ['#12061f', '#ff2e93', '#4fd8ff'] },
-  { id: 'winter', name: 'Winter', sub: 'Snow, pine and Christmas lights', sw: ['#eef4fb', '#c8102e', '#1b7a4b'] },
+  { id: 'normal', name: 'Normal', sub: 'Clean and professional; follows light/dark', sw: ['#f6f5f2', '#2f6fdb', '#1f9d61'] },
+  { id: 'vice', name: 'Vice', sub: 'Neon coast at dusk, missions and respect', sw: ['#12061f', '#ff2e93', '#4fd8ff'] },
+  { id: 'winter', name: 'Winter', sub: 'Alpine morning, frosted glass, snowfall', sw: ['#e8f0f9', '#2a5d96', '#b3122e'] },
 ];
 if (!THEMES.some((t) => t.id === theme())) document.documentElement.dataset.theme = 'vice';
+/* Wording follows the theme: plain work words in Normal, missions and Respect in Vice, an alpine
+   expedition in Winter. term(key) for labels, stepName(step) for a step's title. */
+const TERMS = {
+  normal: { day: 'Today', score: 'Score', board: 'Scoreboard', step: null, stepsDone: 'Steps done', passed: 'Done', wrap: 'Wrap up', wrapTitle: 'Day wrap-up', messages: 'Messages', focus: 'Focus', perDay: 'Score per day', bugs: 'My open bugs', stories: 'Stories finished', debrief: 'AI wrap-up', weekly: 'Weekly report' },
+  vice: { day: 'Missions', score: 'Respect', board: 'Respect', step: 'Mission', stepsDone: 'Missions passed', passed: 'Mission passed', wrap: 'Debrief', wrapTitle: 'Mission summary', messages: 'Phone', focus: 'Focus mission', perDay: 'Respect per day', bugs: 'Heat on the street', stories: 'Jobs done', debrief: 'Debrief', weekly: 'Weekly report · for the boss' },
+  winter: { day: 'Expedition', score: 'Altitude', board: 'Summit log', step: 'Camp', stepsDone: 'Camps reached', passed: 'Camp reached', wrap: 'Back to base', wrapTitle: 'Back at base camp', messages: 'Radio', focus: 'Deep trail', perDay: 'Altitude per day', bugs: 'Avalanche watch', stories: 'Peaks climbed', debrief: 'Fireside debrief', weekly: 'Weekly expedition log' },
+};
+const WINTER_STEPS = { github: 'Clear the Trail', health: 'Weather Check', jira: 'Read the Map', slack: 'Signals from Base', work: 'The Ascent', meet: 'Fireside Talks' };
+const term = (k) => (TERMS[theme()] || TERMS.normal)[k] ?? TERMS.normal[k];
+const stepName = (s) => (theme() === 'vice' ? s.mission || s.name : theme() === 'winter' ? s.winter || WINTER_STEPS[s.id] || s.mission || s.name : s.name);
+window.term = term; window.stepName = stepName;
+// The logo in the menu and the tab icon follow the theme (public/brand/<theme>.png).
+function brandIcon() { const src = `brand/${theme()}.png`; const l = document.getElementById('sd-logo'); if (l && !l.src.endsWith(src)) l.src = src; const f = document.querySelector('link[rel="icon"]'); if (f) { f.type = 'image/png'; f.href = src; } }
+window.addEventListener('themechange', brandIcon);
+document.addEventListener('DOMContentLoaded', brandIcon);
 function setTheme(id) {
   document.documentElement.dataset.theme = id;
   store('theme', id);
@@ -189,9 +213,9 @@ function workload() {
 }
 
 function celebrate(step) {
-  if (theme() !== 'vice') return toast(`${step.name} done`);
+  if (!term('step')) return toast(`${step.name} done`);
   const el = $('passed');
-  el.replaceChildren(h('div', {}, h('b', {}, 'Mission passed'), h('span', {}, step.mission), h('small', {}, 'Respect +')));
+  el.replaceChildren(h('div', {}, h('b', {}, term('passed')), h('span', {}, stepName(step)), h('small', {}, `${term('score')} +`)));
   el.hidden = false;
   clearTimeout(celebrate.t);
   celebrate.t = setTimeout(() => (el.hidden = true), 1900);
@@ -212,14 +236,14 @@ async function reopenStep(step) {
 }
 
 function renderFlow() {
-  const vice = theme() === 'vice', cur = current(), n = counts();
+  const themed = !!term('step'), cur = current(), n = counts();
   const hhmm = new Date().toTimeString().slice(0, 5);
   $('tiles').replaceChildren(...FLOW.map((s, i) => {
     const st = stepState(s.id);
     const late = st === 'todo' && hhmm > s.at && s.id !== cur;
     return h('div', { class: `tile step-${st} ${s.id === cur ? 'cur' : ''}`, title: `Planned for ${s.at}`, onclick: () => { focus = s.id; render(); $(s.sec).scrollIntoView(); } },
       h('span', { class: 'badge' }, st === 'done' ? '✓' : st === 'skipped' ? '↷' : i + 1),
-      h('span', { class: 'l' }, h('b', {}, vice ? s.mission : s.name), h('small', {}, st === 'done' ? 'Done' : st === 'skipped' ? 'Skipped' : s.id === cur ? 'Now' : late ? `Was ${s.at}` : s.at)),
+      h('span', { class: 'l' }, h('b', {}, themed ? stepName(s) : s.name), h('small', {}, st === 'done' ? 'Done' : st === 'skipped' ? 'Skipped' : s.id === cur ? 'Now' : late ? `Was ${s.at}` : s.at)),
       h('span', { class: 'n' }, n[s.id]));
   }));
   const left = FLOW.filter((s) => stepState(s.id) !== 'done').length;
@@ -228,12 +252,15 @@ function renderFlow() {
   $('heat').title = wl.why;
   $('btn-all').textContent = showAll ? 'Focus mode' : 'Show all';
   HQ.setLabel($('btn-theme'), `Theme · ${(THEMES.find((t) => t.id === theme()) || THEMES[0]).name}`);
+  // Sidebar names follow the theme too.
+  HQ.setLabel($('nav-day'), term('day')); HQ.setLabel($('btn-score'), term('board'));
+  HQ.setLabel($('btn-phone'), term('messages')); if ($('btn-wrap')) HQ.setLabel($('btn-wrap'), term('wrap'));
   for (const [i, s] of FLOW.entries()) {
     const sec = $(s.sec), st = stepState(s.id), isCur = s.id === cur;
     sec.className = `${isCur ? 'cur' : ''} ${!showAll && !isCur ? 'collapsed' : ''} step-${st}`;
     sec.querySelector('.sec-head').replaceChildren(...[
       h('span', { class: 'badge' }, st === 'done' ? '✓' : i + 1),
-      h('h2', { onclick: () => { focus = s.id; render(); } }, vice ? `Mission ${i + 1} · ${s.mission}` : s.name, vice && h('small', {}, s.name)),
+      h('h2', { onclick: () => { focus = s.id; render(); } }, themed ? `${term('step')} ${i + 1} · ${stepName(s)}` : s.name, themed && h('small', {}, s.name)),
       h('span', { class: 'count' }, n[s.id]),
       h('span', { class: 'spacer' }),
       st !== 'todo' && h('button', { class: 'btn sm ghost', onclick: () => reopenStep(s) }, 'Reopen'),
@@ -336,7 +363,42 @@ function initChrome() {
   $('btn-theme').onclick = (e) => { e.stopPropagation(); toggleThemeMenu(); };
   initHQ();
   initNav();
+  // The AI bubble glows faster while any AI run is working.
+  // When any AI run finishes it may have changed Work Center's data: open views reload (event 'hq:changed').
+  const runningIds = new Set();
+  HQ.onRender(() => {
+    const cmds = D?.commands || [];
+    $('aib-fab')?.classList.toggle('busy', cmds.some((c) => c.running));
+    for (const c of cmds) {
+      if (c.running) runningIds.add(c.id);
+      else if (runningIds.delete(c.id)) window.dispatchEvent(new CustomEvent('hq:changed', { detail: c }));
+    }
+  });
 }
+
+/* ---------- What the user is looking at, for the AI bubble. Views add detail via HQ_VIEWCTX[overlayId]. ---------- */
+window.HQ_VIEWCTX = window.HQ_VIEWCTX || {};
+function buildViewContext() {
+  const open = VIEWS.find((v) => $(v) && !$(v).hidden) || '';
+  const base = { view: { 'home-ov': 'Home', 'prj-ov': 'Projects', 'hr-ov': 'Growth & HR', 'aic-ov': 'AI Center' }[open] || 'Day' };
+  let extra = {};
+  try {
+    extra = open ? (window.HQ_VIEWCTX[open]?.() || {}) : { mission: FLOW.find((x) => x.id === current())?.name || null, dataFiles: 'parts/*.json (the desk)' };
+  } catch (e) { /* a view without context */ }
+  return { ...base, label: base.view, ...extra };
+}
+// Panels see the main window's view (it posts it to the server); the main window posts on change.
+let mainCtx = null, lastPosted = '';
+window.viewContext = () => (PANEL_MODE ? mainCtx || { view: 'Work Center', label: 'Work Center' } : buildViewContext());
+setInterval(async () => {
+  try {
+    if (PANEL_MODE) { mainCtx = (await (await fetch('/api/ui/state')).json()).context; return; }
+    if (!D) return;
+    const body = { context: buildViewContext(), theme: theme() };
+    const sig = JSON.stringify(body);
+    if (sig !== lastPosted) { lastPosted = sig; await post('/api/ui/state', body); }
+  } catch (e) { /* server restarting */ }
+}, 1500);
 
 /* ---------- Left sidebar: one view at a time, active item follows whatever view is open ---------- */
 function openView(id) {
@@ -357,7 +419,7 @@ function initNav() {
     document.documentElement.classList.toggle('side-mini', v);
     store('sideMini', v ? '1' : '0');
     HQ.setLabel($('sd-collapse'), v ? 'Expand' : 'Collapse');
-    $('sd-collapse').querySelector('.nv-i').textContent = v ? '⇥' : '⇤';
+    const ci = $('sd-collapse').querySelector('.nv-i'); ci.dataset.i = v ? 'expand' : 'collapse'; window.ICONS?.paintAll(ci.parentElement);
     $('sd-collapse').title = v ? 'Expand the menu' : 'Collapse the menu';
   };
   setMini(store('sideMini') === '1');

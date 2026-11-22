@@ -49,7 +49,7 @@
   }
 
   function quick() {
-    const b = (label, fn, title) => h('button', { class: 'hm-q', title: title || label, onclick: fn }, label);
+    const b = (label, fn, title) => { const [ic, ...rest] = label.split(' '); const name = { '✦': 'ai', '🗂': 'list', '◫': 'projects', '🧭': 'growth', '⌨': 'scan', '🏆': 'score', '⚙': 'settings' }[ic]; return h('button', { class: 'hm-q', title: title || label, onclick: fn }, name && window.icon ? window.icon(name) : ic, rest.join(' ')); };
     return h('div', { class: 'hm-quick' },
       b('✦ New AI chat', () => { close(); window.openAIBubble?.('chat'); }),
       b('🗂 AI Center', () => { close(); window.openAICenter?.(); }),
@@ -88,8 +88,8 @@
     const pick = (r) => h('button', { class: `hm-rg ${range === r ? 'on' : ''}`, onclick: async () => { range = r; stats = null; paint(); stats = await fetch(`/api/stats?range=${r}`).then((x) => x.json()).catch(() => null); paint(); } }, { week: 'Week', month: 'Month' }[r]);
     return card(range === 'week' ? 'This week' : 'Last 30 days', h('div', {},
       h('div', { class: 'hm-stats' }, STAT.map(([k, label]) => h('div', { class: 'hm-stat' }, h('b', {}, t[k] ?? 0), h('small', {}, label)))),
-      h('div', { class: 'hm-spark', title: 'Respect score per day' }, days.map((d) => h('span', { style: `height:${Math.max(4, Math.round(56 * d.score / max))}px`, title: `${d.date}: ${d.score}` }))),
-      h('div', { class: 'muted small' }, `Respect ${t.score ?? 0}${stats.errors?.length ? ` · ${stats.errors.length} source${stats.errors.length === 1 ? '' : 's'} unavailable` : ''}`)),
+      h('div', { class: 'hm-spark', title: `${term('score')} per day` }, days.map((d) => h('span', { style: `height:${Math.max(4, Math.round(56 * d.score / max))}px`, title: `${d.date}: ${d.score}` }))),
+      h('div', { class: 'muted small' }, `${term('score')} ${t.score ?? 0}${stats.errors?.length ? ` · ${stats.errors.length} source${stats.errors.length === 1 ? '' : 's'} unavailable` : ''}`)),
     h('div', { class: 'hm-rgs' }, pick('week'), pick('month')), 'hm-span2');
   }
 
@@ -173,7 +173,7 @@
     if (!ov || ov.hidden || !D) return;
     const safe = (fn) => { try { return fn(); } catch (e) { return card('Oops', h('div', { class: 'blocked' }, e.message)); } };
     ov.replaceChildren(h('div', { class: 'hm-box', role: 'dialog', 'aria-label': 'Home' },
-      h('header', { class: 'aic-head' }, h('h2', {}, '⌂ Home'), h('span', { class: 'st-gap' }),
+      h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('home') : null, 'Home'), h('span', { class: 'st-gap' }),
         h('button', { class: 'btn ghost', onclick: goToday }, 'Today’s missions'), h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'hm-scroll' }, h('div', { class: 'hm-wrap' },
         safe(hero), safe(quick),
@@ -181,6 +181,7 @@
   }
 
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $(OV) && !$(OV).hidden) close(); });
+  window.addEventListener('hq:changed', () => { if ($(OV) && !$(OV).hidden) fetchAll(); });
   HQ.addButton({ id: 'btn-home', label: '⌂ Home', title: 'Home: streaks, stats, activity and today at a glance', onclick: () => window.openHome() });
   // Move Home to the front of the header buttons.
   const btn = $('btn-home');

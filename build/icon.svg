@@ -1,47 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b0b3a"/>
-      <stop offset=".45" stop-color="#6a1b7a"/>
-      <stop offset=".78" stop-color="#ff2e93"/>
-      <stop offset="1" stop-color="#ff9a3d"/>
-    </linearGradient>
-    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff06a"/>
-      <stop offset=".55" stop-color="#ff9a3d"/>
-      <stop offset="1" stop-color="#ff2e93"/>
-    </linearGradient>
-    <linearGradient id="hq" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset=".45" stop-color="#fff06a"/>
-      <stop offset="1" stop-color="#ff7a3d"/>
-    </linearGradient>
-    <clipPath id="sq"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
-    <mask id="stripes">
-      <rect x="0" y="0" width="1024" height="1024" fill="#fff"/>
-      <rect x="200" y="452" width="624" height="14" fill="#000"/>
-      <rect x="200" y="498" width="624" height="18" fill="#000"/>
-      <rect x="200" y="548" width="624" height="22" fill="#000"/>
-      <rect x="200" y="602" width="624" height="26" fill="#000"/>
-    </mask>
-  </defs>
-  <g clip-path="url(#sq)">
-    <rect x="100" y="100" width="824" height="824" fill="url(#sky)"/>
-    <circle cx="512" cy="470" r="250" fill="url(#sun)" mask="url(#stripes)"/>
-    <g fill="none" stroke="#14062a" stroke-width="22" stroke-linecap="round">
-      <path d="M236 930c8-150 0-262 28-372"/>
-      <path d="M264 558c-58-74-138-82-204-36"/><path d="M264 558c-36-92-96-140-170-146"/>
-      <path d="M264 558c8-90 52-150 126-172"/><path d="M264 558c66-58 134-58 186-14"/>
-      <path d="M264 558c52-8 110 30 140 90"/><path d="M264 558c-60 0-110 46-134 112"/>
-      <path d="M800 930c-8-130 4-226-22-322"/>
-      <path d="M778 608c-52-66-122-72-180-30"/><path d="M778 608c-30-82-84-124-150-128"/>
-      <path d="M778 608c8-80 48-132 114-152"/><path d="M778 608c58-50 118-50 166-12"/>
-      <path d="M778 608c46-6 98 28 124 80"/><path d="M778 608c-52 0-98 40-120 98"/>
-    </g>
-    <rect x="100" y="770" width="824" height="154" fill="#14062a"/>
-    <rect x="100" y="770" width="824" height="7" fill="#4fd8ff"/>
-    <text x="512" y="742" text-anchor="middle" font-family="'Avenir Next Condensed','Arial Narrow',Impact,sans-serif" font-weight="900" font-style="italic" font-size="400" letter-spacing="-6" fill="#14062a" stroke="#14062a" stroke-width="44" stroke-linejoin="round">HQ</text>
-    <text x="512" y="742" text-anchor="middle" font-family="'Avenir Next Condensed','Arial Narrow',Impact,sans-serif" font-weight="900" font-style="italic" font-size="400" letter-spacing="-6" fill="url(#hq)" stroke="#ff2e93" stroke-width="10" stroke-linejoin="round">HQ</text>
-    <text x="512" y="868" text-anchor="middle" font-family="'Avenir Next Condensed','Arial Narrow',Impact,sans-serif" font-weight="800" font-style="italic" font-size="84" letter-spacing="26" fill="#4fd8ff">DAILY</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b7bf0"/><stop offset=".55" stop-color="#2556c9"/><stop offset="1" stop-color="#1a2f7a"/></linearGradient>
+  <radialGradient id="glow" cx=".3" cy=".2" r=".9"><stop offset="0" stop-color="#8fb8ff" stop-opacity=".55"/><stop offset="1" stop-color="#8fb8ff" stop-opacity="0"/></radialGradient>
+  <clipPath id="sq"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
+  <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <filter id="drop" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity=".28"/></filter>
+</defs>
+<g filter="url(#drop)"><rect x="100" y="100" width="824" height="824" rx="186" fill="#000" opacity=".001"/></g>
+<g clip-path="url(#sq)"><rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/><rect width="1024" height="1024" fill="url(#glow)"/>
+   <path d="M300 410 L392 650 L512 468 L632 650 L724 410" fill="none" stroke="#0e1f52" stroke-opacity=".35" stroke-width="86" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 14)"/>
+   <path d="M300 410 L392 650 L512 468 L632 650 L724 410" fill="none" stroke="#fff" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+   <path d="M760 218 C768.88 283.12 768.88 283.12 834 292 C768.88 300.88 768.88 300.88 760 366 C751.12 300.88 751.12 300.88 686 292 C751.12 283.12 751.12 283.12 760 218Z" fill="#ffffff"/><path d="M838 352 C841.6 378.4 841.6 378.4 868 382 C841.6 385.6 841.6 385.6 838 412 C834.4 385.6 834.4 385.6 808 382 C834.4 378.4 834.4 378.4 838 352Z" fill="#cfe0ff"/><rect x="100" y="100" width="824" height="420" fill="url(#gloss)"/></g>
+<rect x="100.5" y="100.5" width="823" height="823" rx="186" fill="none" stroke="#fff" stroke-opacity=".18"/>
 </svg>

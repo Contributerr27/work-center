@@ -163,7 +163,7 @@
     const total = Object.values(A.counts).reduce((a, b) => a + b, 0);
     ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'AI Center' },
       h('header', { class: 'aic-head' },
-        h('h2', {}, '✦ AI Center'),
+        h('h2', { class: 'vh' }, window.icon ? window.icon('ai') : null, 'AI Center'),
         h('span', { class: 'muted small' }, `${total} AI run${total === 1 ? '' : 's'} in ${parseDay(`${A.month}-01`).toLocaleDateString([], { month: 'long' })}`),
         h('span', { class: 'st-gap' }),
         h('button', { class: 'btn ghost', onclick: () => { close(); openBubble('chat'); } }, '✦ New chat'),
@@ -176,12 +176,13 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $(OV) && !$(OV).hidden) close(); });
 
   /* ================= Floating AI bubble ================= */
-  const B = { open: false, mode: store('aib:mode') || 'chat', size: store('aib:size') || 'm', thread: store('aib:thread') || null, files: [], draft: '', sending: false, timer: null, cmds: [] };
+  const B = { open: false, mode: store('aib:mode') || 'chat', size: store('aib:size') || 'm', thread: store('aib:thread') || null, files: [], draft: '', sending: false, timer: null, cmds: [], quote: null, seen: new Set() };
 
   function bubbleEls() {
     let fab = $('aib-fab');
     if (!fab) {
-      fab = h('button', { id: 'aib-fab', title: 'AI chat (⌘J)', 'aria-label': 'Open AI chat', onclick: () => (B.open ? closeBubble() : openBubble()) }, h('span', {}, '✦'));
+      fab = h('button', { id: 'aib-fab', title: 'AI chat (⌘J)', 'aria-label': 'Open AI chat', onclick: async () => { if (await window.shellPanel?.('ai', { toggle: true })) return; B.open ? closeBubble() : openBubble(); } },
+        h('span', { class: 'orb', 'aria-hidden': 'true' }, h('i', { class: 'orb-ring' }), h('i', { class: 'orb-core' }), h('i', { class: 'orb-spark' }), h('span', { class: 'orb-ic' }, '✦')));
       document.body.append(fab, h('div', { id: 'aib-win', hidden: true, role: 'dialog', 'aria-label': 'AI chat' }));
     }
     return { fab, win: $('aib-win') };
@@ -193,7 +194,10 @@
     pollChat();
   }
   window.openAIBubble = openBubble;
+  // Point the bubble at something on screen (right-click → Ask AI): a quote chip that goes with the next message.
+  window.askAIBubble = async (quote, prefill) => { if (!PANEL_MODE && await window.shellPanel?.('ai', { open: true, quote })) return; B.quote = quote; if (prefill != null) B.draft = prefill; setPref('mode', 'chat'); openBubble('chat'); };
   function closeBubble() {
+    if (PANEL_MODE === 'ai') { window.shellPanel('ai', { open: false }); return; }
     B.open = false;
     window.unmountTerminal?.();
     $('aib-win').hidden = true;
@@ -206,6 +210,11 @@
     clearTimeout(B.timer);
     if (!B.open || B.mode !== 'chat') return;
     try { B.cmds = (await (await fetch('/api/pings')).json()).commands || []; } catch (e) { /* server restarting */ }
+    // A chat run that just finished may have changed Work Center's data: tell the open views to reload.
+    for (const c of B.cmds) {
+      if (c.running) B.seen.add(c.id);
+      else if (B.seen.has(c.id)) { B.seen.delete(c.id); try { load(false); } catch (e) { /* the page reload fires hq:changed */ } }
+    }
     paintMessages();
     const running = B.cmds.some((c) => c.thread === B.thread && c.running);
     B.timer = setTimeout(pollChat, running ? 1500 : 8000);
@@ -225,12 +234,14 @@
 
   async function send() {
     const text = B.draft.trim();
-    if ((text.length < 2 && !B.files.length) || B.sending) return;
+    if ((text.length < 2 && !B.files.length && !B.quote) || B.sending) return;
     B.sending = true;
+    const q = B.quote;
+    const body = (text || (q ? 'Help me with this.' : 'Look at the attached files.')) + (q ? `\n\nAbout this (${q.where}):\n\"\"\"\n${q.text}\n\"\"\"${q.url ? `\nLink: ${q.url}` : ''}` : '');
     try {
-      const c = await post('/api/command', { section: 'hq', text: text || 'Look at the attached files.', thread: B.thread, files: B.files.map((f) => f.path) });
+      const c = await post('/api/command', { section: 'hq', text: body.slice(0, 5800), thread: B.thread, files: B.files.map((f) => f.path), context: window.viewContext?.() || null });
       setPref('thread', c.thread);
-      B.draft = ''; B.files = [];
+      B.draft = ''; B.files = []; B.quote = null;
     } catch (e) { toast(e.message); }
     B.sending = false;
     paintBubble();
@@ -240,8 +251,8 @@
   function messages() {
     const mine = B.cmds.filter((c) => B.thread && c.thread === B.thread).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
     if (!mine.length) return [h('div', { class: 'aib-hello' }, h('b', {}, `Hi${D?.config?.owner ? ` ${D.config.owner.split(' ')[0]}` : ''}, what should I do?`),
-      h('p', { class: 'muted small' }, `Ask anything or give a job: it runs with ${D?.config?.engine || 'your AI'} and all your connections. Drop in files or paste a screenshot.`),
-      h('div', { class: 'aib-sugg' }, ['What needs me today?', 'Summarize my open PRs', 'Draft my standup'].map((s) => h('button', { class: 'chip', onclick: () => { B.draft = s; send(); } }, s))))];
+      h('p', { class: 'muted small' }, `Ask anything, give a job, or tell it a fact (\"Thomas left the company\") and it updates Work Center. It runs with ${D?.config?.engine || 'your AI'} and all your connections; it sees what you are looking at.`),
+      h('div', { class: 'aib-sugg' }, ((window.viewContext?.() || {}).suggest || ['What needs me today?', 'Summarize my open PRs', 'Draft my standup']).map((s) => h('button', { class: 'chip', onclick: () => { B.draft = s; send(); } }, s))))];
     return mine.flatMap((c) => [
       h('div', { class: 'aic-msg me' }, h('div', { class: 'aic-bub' }, c.text), c.attachments?.length ? h('div', { class: 'aic-att' }, c.attachments.map((a) => h('span', { class: 'chip sm' }, `📎 ${a}`))) : null),
       c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || c.result || 'Done.'), liveFeed(c)),
@@ -269,7 +280,7 @@
       h('span', { class: 'st-gap' }),
       B.mode === 'chat' && B.thread ? h('button', { class: 'aib-x', title: 'New chat', onclick: () => { setPref('thread', ''); B.thread = null; paintBubble(); } }, '＋') : null,
       sizeBtn('s', 'S', 'Small'), sizeBtn('m', 'M', 'Medium'), sizeBtn('l', '⤢', 'Full view'),
-      h('button', { class: 'aib-x', title: 'Open in AI Center', onclick: () => { const t = B.thread; closeBubble(); window.openAICenter(); if (t) setTimeout(() => loadRun(t), 400); } }, '↗'),
+      h('button', { class: 'aib-x', title: 'Open in AI Center', onclick: async () => { const t = B.thread; if (PANEL_MODE && await window.shellMain('openAICenter')) return; closeBubble(); window.openAICenter(); if (t) setTimeout(() => loadRun(t), 400); } }, '↗'),
       h('button', { class: 'aib-x', title: 'Close (⌘J)', 'aria-label': 'Close', onclick: closeBubble }, '✕'));
     if (B.mode === 'terminal') {
       const host = h('div', { class: 'aib-term' });
@@ -287,6 +298,8 @@
     win.replaceChildren(head,
       h('div', { class: 'aib-msgs', id: 'aib-msgs' }),
       h('div', { class: 'aib-compose', ondragover: (e) => e.preventDefault(), ondrop: (e) => { e.preventDefault(); addFiles(e.dataTransfer.files); } },
+        h('div', { class: 'aib-ctx' }, h('span', { class: 'aib-eye', title: 'The AI sees which view you are on' }, `◉ ${(window.viewContext?.() || {}).label || 'Day'}`),
+          B.quote ? h('span', { class: 'chip aib-quote', title: B.quote.text }, h('span', { class: 'chip-t' }, `❝ ${B.quote.text.slice(0, 80)}`), h('button', { class: 'chip-x', 'aria-label': 'Remove', onclick: () => { B.quote = null; paintBubble(); } }, '×')) : null),
         B.files.length ? h('div', { class: 'aib-files' }, B.files.map((f, i) => h('span', { class: 'aib-file' },
           f.preview ? h('img', { src: f.preview, alt: '' }) : h('span', {}, '📄'), h('span', { class: 'chip-t' }, f.name),
           h('button', { class: 'chip-x', 'aria-label': `Remove ${f.name}`, onclick: () => { B.files.splice(i, 1); paintBubble(); } }, '×')))) : null,
@@ -299,7 +312,8 @@
   }
 
   document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'j') { e.preventDefault(); B.open ? closeBubble() : openBubble(); }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'j') { e.preventDefault(); $('aib-fab').click(); }
   });
   bubbleEls();
+  if (PANEL_MODE === 'ai') { B.size = 'p'; openBubble('chat'); }
 })();

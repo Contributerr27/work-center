@@ -64,3 +64,43 @@ html.side-mini .nv .pbadge { position: absolute; top: 2px; right: 4px; }
 [data-theme="winter"] .sd-brand b { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; color: #c8102e; }
 #wrap-offer { left: calc(var(--side-w) + 20px); }
 #focus-hud { left: calc(50% + var(--side-w) / 2); }
+#aib-win[data-size="l"] { left: calc(var(--side-w) + 24px); }
+
+/* Window dragging (frameless title bar): the header, the sidebar and every view header move the window;
+   anything you click or type in does not. A thin strip along the very top always drags. */
+#top, #side, .aic-head, .hm-hero { -webkit-app-region: drag; }
+#top button, #top a, #top input, #top .respect, #top .heat, #side .nv, #side button, #side a,
+.aic-head button, .aic-head input, .aic-head select, .aic-head a, .aic-head nav, .hm-hero button { -webkit-app-region: no-drag; }
+#drag-strip { position: fixed; top: 0; left: 0; right: 0; height: 12px; z-index: 90; -webkit-app-region: drag; }
+html.panel #drag-strip { display: none; }
+
+/* ---------- Rounder app: the sidebar and full-page views float as rounded panels ---------- */
+:root { --r-xl: 22px; --r-lg: 18px; --r-md: 13px; --gap: 10px; }
+body { padding-left: calc(var(--side-w) + var(--gap) * 2); }
+#side { left: var(--gap); top: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
+#home-ov, #prj-ov, #hr-ov, #aic-ov { left: calc(var(--side-w) + var(--gap) * 2); top: var(--gap); right: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .12); }
+#home-ov .hm-box, #prj-ov .aic-box, #hr-ov .aic-box, #aic-ov .aic-box { height: 100%; }
+#aib-win[data-size="l"] { left: calc(var(--side-w) + var(--gap) * 2 + 24px); }
+.panel, .card, .tcard, .hm-card, .prj-card, .st-card, .ap-card, .wr-card, .sb-card, .hl-card, .hr-team, .hr-ans, .hr-imp { border-radius: var(--r-lg); }
+.st-box, .ap-box, .wr-box, .sb-box, .fx-box, #ctx-menu, #theme-menu, #why-pop, .reader-box { border-radius: var(--r-xl); }
+.tile, .cmd, .prj-tile, .hm-tile, .hr-metrics > div, .aic-item, .prj-it { border-radius: var(--r-md); }
+.btn { border-radius: 11px; }
+.btn.sm { border-radius: 9px; }
+.st-in, .aib-in, input[type="text"], textarea, select { border-radius: 11px; }
+#aib-win { border-radius: var(--r-xl); }
+[data-theme="vice"] #side, [data-theme="vice"] #home-ov, [data-theme="vice"] #prj-ov, [data-theme="vice"] #hr-ov, [data-theme="vice"] #aic-ov { border-color: rgba(255, 63, 164, .22); }
+[data-theme="winter"] #side, [data-theme="winter"] #home-ov, [data-theme="winter"] #prj-ov, [data-theme="winter"] #hr-ov, [data-theme="winter"] #aic-ov { border-color: rgba(255, 255, 255, .7); }
+@media (max-width: 900px) { :root { --gap: 6px; } }
+
+/* ---------- Panel windows (main.js side panels): only the AI chat or Messages, edge to edge, rounded ---------- */
+html.panel, html.panel body { background: transparent !important; padding: 0 !important; overflow: hidden; height: 100%; }
+html.panel body::before { display: none !important; }
+html.panel body > *:not(#aib-win):not(#phone):not(#toast):not(#ctx-menu):not(#why-pop):not(#theme-menu) { display: none !important; }
+html.panel-ai #phone { display: none !important; }
+html.panel-ai #aib-win { position: fixed; inset: 0 !important; width: auto !important; height: auto !important; border-radius: var(--r-xl); display: flex !important; }
+html.panel-ai .aib-sz, html.panel-ai #aib-fab { display: none !important; }
+html.panel-ai .aib-head { -webkit-app-region: drag; }
+html.panel-ai .aib-head button { -webkit-app-region: no-drag; }
+html.panel-phone #phone { position: fixed; inset: 0; width: auto; right: 0; bottom: 0; animation: none; display: block; }
+html.panel-phone #phone .ph { height: 100%; border-radius: 30px; display: flex; flex-direction: column; }
+html.panel-phone #phone .ph-list { flex: 1; max-height: none; }

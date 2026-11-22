@@ -148,10 +148,11 @@
     return h('div', { class: `prj-row ${i.category} ${i.blocked ? 'blk' : ''} ${P.focus === i.key ? 'focus' : ''}`, id: `prj-row-${i.key}` },
       h('span', { class: 'prj-type', title: i.type }, i.subtask ? '↳' : /bug/i.test(i.type) ? '🐞' : /story/i.test(i.type) ? '▤' : '☐'),
       h('a', { class: 'link prj-key', href: i.url }, i.key),
-      h('span', { class: 'prj-tt', title: i.title }, i.title, i.why.length ? h('small', { class: 'prj-why' }, ` ⛔ ${i.why.join(' · ')}`) : null),
+      h('span', { class: 'prj-tt', title: i.title }, i.title),
       h('span', { class: 'prj-meta' },
         i.assignee ? h('span', { class: `prj-who ${i.mine ? 'me' : ''}`, title: i.assignee }, i.mine ? 'You' : i.assignee.split(' ')[0]) : h('span', { class: 'muted small' }, 'Unassigned'),
         i.category !== 'done' && i.due ? h('span', { class: `pill ${i.overdue ? 'red' : daysTo(i.due) <= 3 ? 'amber' : ''}`, title: i.dueFrom === 'sprint end' ? `${i.sprint} ends ${i.due}` : `Due ${i.due}` }, `${i.dueFrom === 'sprint end' ? '⏱ ' : ''}${fmtDay(i.due)}`) : null,
+        i.blocked || i.overdue ? h('button', { class: 'why-badge', 'data-why-key': i.key, 'aria-label': `Why ${i.key} is blocked` }, i.blocked ? '⛔ Why?' : '⏰ Late') : null,
         h('span', { class: `pill ${STATUS_CLS[i.category]} ${i.blocked ? 'red' : ''}` }, i.status),
         itemActions('project', ref)));
   }
@@ -170,7 +171,7 @@
     const ai = d.brief?.blockers || [];
     if (!rule.length && !ai.length) return card('Blockers', h('div', { class: 'muted small' }, 'Nothing blocked or late in Jira.', d.brief ? '' : ' Build the AI brief to also check Slack and meetings.'));
     return card('Blockers', h('ul', { class: 'prj-list' },
-      rule.map((i) => h('li', {}, h('button', { class: 'linkbtn', onclick: () => { P.focus = i.key; P.filter = 'all'; paint(); } }, i.key), ' ', i.title, h('small', { class: 'muted' }, ` · ${[...i.why, i.overdue ? `${dueTxt(i.due)}` : null].filter(Boolean).join(' · ')}`))),
+      rule.map((i) => h('li', {}, h('button', { class: 'linkbtn', onclick: () => { P.focus = i.key; P.filter = 'all'; paint(); } }, i.key), ' ', i.title, ' ', h('button', { class: 'why-badge', 'data-why-key': i.key }, 'Why?'), h('small', { class: 'muted' }, ` · ${[...i.why, i.overdue ? `${dueTxt(i.due)}` : null].filter(Boolean).join(' · ')}`))),
       ai.map((b) => h('li', {}, b.url ? h('a', { class: 'link', href: b.url }, b.key || '↗') : b.key ? h('b', {}, b.key) : null, ' ', b.text, b.owner ? h('small', { class: 'muted' }, ` · ${b.owner}`) : null, h('span', { class: 'pill violet sm-pill' }, 'AI')))));
   }
 
@@ -239,7 +240,7 @@
     if (!ov || ov.hidden) return;
     const keep = document.querySelector(`#${OV} .prj-scroll`)?.scrollTop;
     ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'Projects' },
-      h('header', { class: 'aic-head' }, h('h2', {}, '◫ Projects'),
+      h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('projects') : null, 'Projects'),
         h('span', { class: 'muted small' }, P.list ? `${P.list.filter((p) => p.category !== 'done').length} active · ${P.list.filter((p) => p.category === 'done').length} completed in ${qLabel(P.quarter)}` : ''),
         h('span', { class: 'st-gap' }),
         P.quarter && P.quarter !== P.current ? h('button', { class: 'btn ghost', onclick: () => loadList(P.current) }, 'This quarter') : null,
@@ -252,6 +253,19 @@
     const m = $('prj-msgs'); if (m) m.scrollTop = m.scrollHeight;
   }
 
+  // For the blocked-item tooltip: what this view already knows about an item.
+  window.PROJECT_ITEMS = (key) => (P.detail?.items || []).find((i) => i.key === key) || null;
+  window.HQ_VIEWCTX = window.HQ_VIEWCTX || {};
+  window.HQ_VIEWCTX[OV] = () => {
+    const p = P.detail?.project;
+    return {
+      label: p ? `Projects · ${p.key}` : `Projects · ${qLabel(P.quarter)}`, quarter: P.quarter,
+      project: p ? { key: p.key, title: p.title, url: p.url, status: p.status, due: p.due, progress: `${p.counts?.done}/${p.counts?.total} done`, blockers: p.blockers } : null,
+      focusIssue: P.focus || null, dataFiles: p ? { brief: `projects/brief-${p.key}.json`, notes: 'notes.md' } : undefined,
+      suggest: p ? ['What is left to hit the deadline?', 'Draft a status update for this project', 'This blocker is resolved: update the brief'] : undefined,
+    };
+  };
+  window.addEventListener('hq:changed', () => { if ($(OV) && !$(OV).hidden && P.sel) loadOne(P.sel, false); });
   window.HQ_ASK = window.HQ_ASK || {};
   window.HQ_ASK.project = (ref, prefill) => {
     P.draft = prefill ?? `About ${ref.label}: `;

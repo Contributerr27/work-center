@@ -63,7 +63,7 @@
     el.replaceChildren(
       h('div', { class: 'fx-dial' }, ringSvg(total ? ms / total : 0), h('b', {}, mmss(ms))),
       h('div', { class: 'fx-txt' },
-        h('small', {}, vice() ? 'Focus mission' : 'Focus'),
+        h('small', {}, term('focus')),
         h('span', { title: a.label || '' }, a.label || 'Deep work'),
         F.hooks?.last && !F.hooks.last.ok && h('em', { title: F.hooks.last.error || '' }, 'Shortcut failed')),
       h('button', { class: 'btn sm ghost', title: 'Add 10 minutes', onclick: () => act('/api/focus/extend', '+10 min') }, '+10'),
@@ -80,7 +80,7 @@
     let minutes = 50, task = taskId || '';
     const tasks = (D?.tasks || []).filter((t) => t.status === 'ready' && !t.doneAt);
     const draw = () => el.replaceChildren(h('div', { class: 'fx-box', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Start a focus session' },
-      h('div', { class: 'fx-title' }, vice() ? 'Focus mission' : 'Start a focus session'),
+      h('div', { class: 'fx-title' }, theme() === 'normal' ? 'Start a focus session' : term('focus')),
       h('div', { class: 'fx-mins' }, [25, 50, 90].map((m) => h('button', { class: `fx-min ${m === minutes ? 'on' : ''}`, onclick: () => { minutes = m; draw(); } }, h('b', {}, m), h('small', {}, 'min')))),
       h('label', { class: 'fx-lbl' }, 'Task',
         h('select', { onchange: (e) => { task = e.target.value; } },

@@ -219,7 +219,7 @@
     const tabs = [['overview', 'Overview'], ['review', 'Self-review'], ['feedback', 'Feedback & score'], ['org', 'Org chart'], ['settings', 'Settings']];
     const keep = document.querySelector(`#${OV} .prj-scroll`)?.scrollTop;
     ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'Growth and HR' },
-      h('header', { class: 'aic-head' }, h('h2', {}, '🧭 Growth & HR'),
+      h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('growth') : null, 'Growth & HR'),
         h('nav', { class: 'aib-modes hr-tabs' }, tabs.map(([id, label]) => h('button', { class: `aib-mode ${S.tab === id ? 'on' : ''}`, onclick: () => { S.tab = id; paint(); } }, label))),
         h('span', { class: 'st-gap' }), h('span', { class: 'muted small' }, 'Stays on this computer'), h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'prj-scroll' }, h('div', { class: 'prj-wrap' },
@@ -229,6 +229,20 @@
     const m = $('hr-msgs'); if (m) m.scrollTop = m.scrollHeight;
   }
 
+  // For the AI bubble: which tab and which files back what is on screen.
+  window.HQ_VIEWCTX = window.HQ_VIEWCTX || {};
+  window.HQ_VIEWCTX[OV] = () => {
+    const tabName = { overview: 'Overview', review: 'Self-review', feedback: 'Feedback & score', org: 'Org chart', settings: 'Settings' }[S.tab];
+    const fb = S.data?.feedback?.window?.to;
+    return {
+      label: `Growth & HR · ${tabName}${S.tab === 'review' && S.review ? ` ${S.review.period?.label}` : ''}`, tab: tabName,
+      dataFiles: { orgChart: 'hr/org.json', review: S.review ? `hr/review-${S.review.period?.key}.json` : null, feedback: fb ? `hr/feedback/${fb}.json` : null, notes: 'notes.md' },
+      review: S.tab === 'review' && S.review ? { period: S.review.period?.label, headline: S.review.headline } : undefined,
+      suggest: S.tab === 'org' ? ['Someone left the company: update the org chart', 'Fix a title or reporting line'] : S.tab === 'review' ? ['I can add context to a concern in my review', 'Make the impact answer more specific'] : S.tab === 'feedback' ? ['Here is context on a concern my manager raised', 'How do I raise my lowest area?'] : ['Prep talking points for my next 1:1', 'What would get me to the next level?'],
+    };
+  };
+  // After the AI changes HR data (bubble or coach), show the new version.
+  window.addEventListener('hq:changed', () => { if ($(OV) && !$(OV).hidden) { S.review = null; load(); } });
   window.HQ_ASK = window.HQ_ASK || {};
   window.HQ_ASK.hr = (ref, prefill) => { S.tab = 'overview'; S.draft = prefill ?? `About ${ref.label}: `; paint(); $('hr-chat')?.querySelector('input')?.focus(); };
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $(OV) && !$(OV).hidden) close(); });

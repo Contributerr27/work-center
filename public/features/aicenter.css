@@ -59,11 +59,44 @@ html.aic-open, html.aic-open body { overflow: hidden; }
 @media (max-width: 760px) { .aic-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .aic-side { max-height: 45vh; border-right: 0; border-bottom: 1px solid var(--line); } .aic-head { padding-left: 16px; } }
 
 /* ---------- floating bubble ---------- */
-#aib-fab { position: fixed; right: 22px; bottom: 22px; z-index: 30; width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer; color: #fff; font-size: 22px; background: linear-gradient(135deg, var(--violet), var(--blue)); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); transition: transform .15s ease; }
-#aib-fab:hover { transform: scale(1.06); }
+/* The bubble: a glowing orb. A conic ring turns slowly, the core breathes; faster while the AI works. */
+#aib-fab {
+  --o1: #8b5cf6; --o2: #3b82f6; --o3: #22d3ee; --o4: #ec4899;
+  position: fixed; right: 22px; bottom: 22px; z-index: 30; width: 58px; height: 58px; padding: 0; border-radius: 50%; border: 0; cursor: pointer;
+  background: radial-gradient(circle at 50% 50%, #1b1636 0 55%, #0d0b1c 100%); color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 10px 30px rgba(59, 130, 246, .35), 0 0 26px rgba(139, 92, 246, .45);
+  transition: transform .18s ease, box-shadow .3s ease; animation: orb-glow 3.2s ease-in-out infinite;
+}
+#aib-fab:hover { transform: scale(1.07); }
 #aib-fab:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-#aib-fab.on { transform: rotate(45deg) scale(.92); }
-html.aic-open #aib-fab, html.term-open #aib-fab { display: none; }
+.orb { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; overflow: hidden; }
+.orb-ring { position: absolute; inset: 3px; border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--o1), var(--o2), var(--o3), var(--o4), var(--o1));
+  -webkit-mask: radial-gradient(circle, transparent 0 60%, #000 62% 100%); mask: radial-gradient(circle, transparent 0 60%, #000 62% 100%);
+  animation: orb-spin 5s linear infinite; filter: blur(.4px); }
+.orb-core { position: absolute; width: 58%; height: 58%; border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #fff 0 6%, var(--o3) 22%, var(--o2) 48%, var(--o1) 72%, transparent 76%);
+  animation: orb-breathe 2.8s ease-in-out infinite; filter: blur(1.5px); opacity: .9; }
+.orb-spark { position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 90deg, transparent 0 80%, rgba(255, 255, 255, .55) 88%, transparent 96%);
+  -webkit-mask: radial-gradient(circle, transparent 0 58%, #000 60% 100%); mask: radial-gradient(circle, transparent 0 58%, #000 60% 100%);
+  animation: orb-spin 2.6s linear infinite reverse; }
+.orb-ic { position: relative; font-size: 17px; line-height: 1; text-shadow: 0 0 8px rgba(255, 255, 255, .9); transition: transform .25s ease; }
+#aib-fab.on .orb-ic { transform: rotate(135deg) scale(.9); }
+#aib-fab.busy { animation-duration: 1.2s; }
+#aib-fab.busy .orb-ring { animation-duration: 1.1s; }
+#aib-fab.busy .orb-core { animation-duration: 1s; }
+@keyframes orb-spin { to { transform: rotate(360deg); } }
+@keyframes orb-breathe { 0%, 100% { transform: scale(.82); opacity: .75; } 50% { transform: scale(1.04); opacity: 1; } }
+@keyframes orb-glow { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 10px 30px rgba(59, 130, 246, .3), 0 0 18px rgba(139, 92, 246, .35); }
+  50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 10px 34px rgba(59, 130, 246, .45), 0 0 34px rgba(139, 92, 246, .6); } }
+@media (prefers-reduced-motion: reduce) { #aib-fab, .orb-ring, .orb-core, .orb-spark { animation: none !important; } }
+[data-theme="vice"] #aib-fab { --o1: #ff2e93; --o2: #ff9a3d; --o3: #4fd8ff; --o4: #b14bff; }
+html.term-open #aib-fab { display: none; }
+.aic-reply { padding-right: 96px !important; }
+.aib-ctx { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.aib-eye { font-size: 11.5px; font-weight: 650; color: var(--muted); white-space: nowrap; }
+.aib-quote { max-width: 100%; background: var(--violet-bg); color: var(--violet); }
 #aib-win { position: fixed; z-index: 29; right: 22px; bottom: 88px; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 50px rgba(0, 0, 0, .3); overflow: hidden; }
 #aib-win[hidden] { display: none; }
 #aib-win[data-size="s"] { width: 360px; height: 480px; }

@@ -18,6 +18,7 @@
       "build/icon.*",
       "build/icon.png",
       "build/tray*.png",
+      "build/icons/*.png",
       "config.json",
       "main.js",
       "prompts/**",

@@ -57,7 +57,7 @@
   }
   function chrome() {
     const el = shell();
-    el.querySelector('.sb-title').textContent = vice() ? 'Respect' : 'Scoreboard';
+    el.querySelector('.sb-title').textContent = term('board');
     el.querySelector('.sb-tabs').replaceChildren(...TABS.map(([id, label]) =>
       h('button', { class: `sb-tab ${id === tab ? 'on' : ''}`, role: 'tab', 'aria-selected': id === tab ? 'true' : 'false', onclick: () => openScoreboard(id) }, label)));
     return el.querySelector('.sb-body');
@@ -70,7 +70,7 @@
     return h('div', { class: 'sb-hero' },
       h('div', { class: 'sb-score' },
         h('b', {}, fmt(r.score ?? s.totals?.score)),
-        h('small', {}, vice() ? 'Respect' : 'Score')),
+        h('small', {}, term('score'))),
       h('div', { class: 'sb-rank' },
         h('div', { class: 'sb-rank-title' }, h('span', { class: 'sb-level' }, `Lv ${r.level || 1}`), r.title || ''),
         h('div', { class: 'sb-meter', title: r.nextTitle ? `${fmt(toNext)} to ${r.nextTitle}` : 'Top rank' },
@@ -91,7 +91,7 @@
       const s = state(st.id);
       return h('div', { class: `sb-step ${s}`, title: `${st.name}: ${s === 'done' ? 'done' : s === 'skipped' ? 'skipped' : 'open'}` },
         h('span', { class: 'sb-check' }, s === 'done' ? '✓' : s === 'skipped' ? '↷' : i + 1),
-        h('small', {}, vice() ? st.mission : st.name));
+        h('small', {}, stepName(st)));
     }));
   }
 
@@ -146,7 +146,7 @@
     const max = Math.max(1, ...PRI.map(([p]) => b.byPriority?.[p] || 0));
     const status = Object.entries(b.byStatus || {}).sort((a, c) => c[1] - a[1]);
     return h('div', { class: 'sb-card' },
-      h('h3', {}, vice() ? 'Heat on the street' : 'My open bugs', h('span', { class: 'sb-big' }, fmt(b.total))),
+      h('h3', {}, term('bugs'), h('span', { class: 'sb-big' }, fmt(b.total))),
       h('div', { class: 'sb-hbars' }, PRI.filter(([p]) => b.byPriority?.[p] || ['High', 'Medium', 'Low'].includes(p)).map(([p, c]) =>
         h('div', { class: 'sb-hbar' },
           h('span', {}, p),
@@ -162,7 +162,7 @@
   function stories(s) {
     const max = Math.max(1, ...s.days.map((d) => d.storiesDone));
     return h('div', { class: 'sb-card' },
-      h('h3', {}, vice() ? 'Jobs done' : 'Stories finished', h('span', { class: 'sb-big' }, fmt(s.totals.storiesDone))),
+      h('h3', {}, term('stories'), h('span', { class: 'sb-big' }, fmt(s.totals.storiesDone))),
       h('div', { class: 'sb-spark' }, s.days.map((d) =>
         h('i', { class: d.storiesDone ? 'f-amber' : '', style: `height:${d.storiesDone ? 12 + (d.storiesDone / max) * 88 : 4}%`, title: `${d.date}: ${d.storiesDone}` }))));
   }
@@ -200,7 +200,7 @@
         counter(t.bugsFiled, 'Bugs filed', 'red'),
         counter(t.steps, 'Desk steps'),
         counter(s.github?.closedUnmerged, 'PRs closed')),
-      h('div', { class: 'sb-card' }, h('h3', {}, vice() ? 'Respect per day' : 'Score per day'), scoreChart(s), legend(ACTS)),
+      h('div', { class: 'sb-card' }, h('h3', {}, term('perDay')), scoreChart(s), legend(ACTS)),
       h('div', { class: 'sb-grid' },
         h('div', { class: 'sb-card' }, h('h3', {}, 'Pull requests'), trendChart(s), legend([[, 'Opened', 'blue'], [, 'Reviewed', 'violet'], [, 'Merged', 'green']])),
         bugs(s)),

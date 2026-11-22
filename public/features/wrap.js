@@ -71,13 +71,13 @@
     return h('div', { class: 'wr-hero' },
       h('div', { class: 'wr-score' },
         h('b', {}, r ? r.score : S?.error ? '–' : '…'),
-        h('small', {}, vice() ? 'Respect' : 'Score')),
+        h('small', {}, term('score'))),
       h('div', { class: 'wr-rank' },
         h('div', { class: 'wr-rank-t' }, r ? h('span', { class: 'wr-lv' }, `Lv ${r.level}`) : null, r ? r.title : S?.error ? 'Score unavailable' : 'Counting…'),
         r && h('div', { class: 'wr-meter', title: r.nextTitle ? `${r.nextAt - r.score} to ${r.nextTitle}` : 'Top rank' }, h('i', { style: `width:${Math.round((r.progress || 0) * 100)}%` })),
         r && h('small', { class: 'muted' }, r.nextTitle ? `+${r.nextAt - r.score} → ${r.nextTitle}` : 'Max rank')),
       h('div', { class: 'wr-stats' },
-        stat(`${passed}/${d.missions.length}`, vice() ? 'Missions passed' : 'Steps done', passed === d.missions.length ? 'all' : ''),
+        stat(`${passed}/${d.missions.length}`, term('stepsDone'), passed === d.missions.length ? 'all' : ''),
         stat(d.cleared, 'Items cleared'),
         stat(d.runs.length, 'AI runs'),
         stat(d.tasks.length, 'Tasks finished'),
@@ -87,7 +87,7 @@
   function missionStrip(d) {
     return h('div', { class: 'wr-strip' }, d.missions.map(({ s, st }, i) => h('div', { class: `wr-m ${st}`, title: `${s.name}: ${st === 'done' ? 'passed' : st === 'skipped' ? 'skipped' : 'not done'}` },
       h('span', { class: 'wr-mi' }, st === 'done' ? '✓' : st === 'skipped' ? '↷' : i + 1),
-      h('span', { class: 'wr-mn' }, vice() ? s.mission : s.name))));
+      h('span', { class: 'wr-mn' }, stepName(s)))));
   }
 
   function activity(d) {
@@ -148,7 +148,7 @@
               h('div', { class: 'wr-up-x' }, u.update));
           }) : h('div', { class: 'empty' }, 'No Jira tickets touched today'))),
       w.weekly && h('div', { class: 'wr-card wr-weekly' },
-        h('div', { class: 'wr-ch' }, h('h4', {}, vice() ? 'Weekly report · for the boss' : 'Weekly report'), h('span', { class: 'spacer' }),
+        h('div', { class: 'wr-ch' }, h('h4', {}, term('weekly')), h('span', { class: 'spacer' }),
           h('button', { class: 'btn sm', onclick: () => copy(weeklyText(w.weekly), 'Weekly report copied') }, 'Copy weekly report')),
         h('b', { class: 'wr-wt' }, w.weekly.title),
         h('ul', {}, (w.weekly.bullets || []).map((b) => h('li', {}, b))),
@@ -161,7 +161,7 @@
   function wrapBox() {
     if (!W) return h('div', { class: 'wr-card muted' }, 'Loading…');
     const run = W.run, w = W.wrap, mine = W.date === W.today;
-    const head = h('div', { class: 'wr-ch' }, h('h4', {}, vice() ? 'Debrief' : 'AI wrap-up'), h('span', { class: 'spacer' }),
+    const head = h('div', { class: 'wr-ch' }, h('h4', {}, term('debrief')), h('span', { class: 'spacer' }),
       w && mine && !run?.running && h('button', { class: 'btn sm ghost', title: 'Write it again from scratch', onclick: () => confirm('Write the wrap again? It replaces this one.') && write() }, '↻ Rewrite'));
     if (run?.running) return h('div', { class: 'wr-card wr-ai' }, head, liveFeed(run));
     if (w) return h('div', { class: 'wr-ai' }, head, ...rendered(w).filter(Boolean));
@@ -187,7 +187,7 @@
     const date = viewing || today();
     el.replaceChildren(h('div', { class: 'wr-box', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Mission summary' },
       h('header', { class: 'wr-top' },
-        h('div', {}, h('h2', { class: 'wr-title' }, vice() ? 'Mission summary' : 'Day wrap-up'), h('div', { class: 'wr-date' }, longDate(date))),
+        h('div', {}, h('h2', { class: 'wr-title' }, term('wrapTitle')), h('div', { class: 'wr-date' }, longDate(date))),
         h('span', { class: 'spacer' }),
         h('button', { class: 'btn sm ghost', title: 'Close (Esc)', onclick: close }, 'Close')),
       !viewing && hero(d),
@@ -207,7 +207,7 @@
     if (!show) { if (el) el.hidden = true; return; }
     if (!el) {
       el = h('div', { id: 'wrap-offer', role: 'status' },
-        h('span', {}, vice() ? '🌇 Wrap up the day?' : 'Wrap up the day?'),
+        h('span', {}, `${term('wrap')}?`),
         h('button', { class: 'btn sm go', onclick: () => open() }, 'Wrap up'),
         h('button', { class: 'ibtn', title: 'Not today', 'aria-label': 'Dismiss', onclick: () => { store(`wrap-offer:${today()}`, '1'); offer(); } }, '×'));
       document.body.append(el);

@@ -239,7 +239,7 @@ section.collapsed .sec-head:hover { opacity: 1; }
 }
 [data-theme="vice"] body { background: #0c0518; }
 [data-theme="vice"] body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(180deg, rgba(12, 5, 24, .05) 0, rgba(12, 5, 24, .38) 45%, rgba(12, 5, 24, .78) 100%), url("/wallpaper") center 30% / cover no-repeat; }
+  background: linear-gradient(180deg, rgba(12, 5, 24, .05) 0, rgba(12, 5, 24, .38) 45%, rgba(12, 5, 24, .78) 100%), url("/wallpaper?t=vice") center 30% / cover no-repeat; }
 [data-theme="vice"] #top { padding-bottom: 20px; }
 [data-theme="vice"] .hello, [data-theme="vice"] .top-actions { position: relative; z-index: 1; }
 [data-theme="vice"] #greet { font: italic 900 40px/1 "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; text-transform: uppercase; letter-spacing: .01em;
