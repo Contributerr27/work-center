@@ -110,3 +110,13 @@ Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when 
 - **✦ bubble (⌘J):** chat or terminal, small/medium/full, file and image attachments (`data/uploads`).
 - **⌂ Home:** streak, rank, today at a glance, 30-day stats, 18-week activity map, AI actions, wins.
 - **Themes:** Normal, Vice, Winter. Add one in `THEMES` (public/flow.js) plus a `:root[data-theme=…]` block.
+- **◫ Projects:** one project per Jira epic you own, report, or work under, by quarter (from a "26Q4" / "Q4 2026"
+  tag in the title, the due date, or when it was resolved; open work always shows in the current quarter). Stories
+  and tasks with deadlines (due date, else sprint end), progress, blockers (blocked status, flagged, "is blocked by",
+  late), linked PRs, an AI brief of the conversation around it (read-only), and an AI assistant scoped to it.
+  The ◫ button on any Jira item on the desk opens its project. Settings `projects`: `epicJql`,
+  `includeParentsOfMine`, `sprintField`, `flaggedField`, `cacheMinutes`. Home shows this quarter's projects.
+- **🧭 Growth & HR:** org chart, a self-review written from your Jira, GitHub, work log, Slack and meeting notes for
+  a period (copy each answer), and AI feedback with a 0–100 score across seven areas from your work and your
+  manager conversations, with suggested improvements and a coach chat. Settings `hr`: `manager`, `reviewQuestions`,
+  `ratingScale`, `focus`. All of it stays in `data/hr` on this computer.

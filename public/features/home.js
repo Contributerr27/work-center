@@ -4,7 +4,7 @@
    Uses page globals: h, $, D, toast, HQ, FLOW, current, counts, stepState, render. */
 (() => {
   const OV = 'home-ov';
-  let H = null, stats = null, setupInfo = null, range = 'month';
+  let H = null, stats = null, setupInfo = null, range = 'month', PJ = null;
   const pad = (n) => String(n).padStart(2, '0');
   const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const STAT = [['prsOpened', 'PRs opened'], ['prsMerged', 'PRs merged'], ['reviews', 'Reviews'], ['storiesDone', 'Stories done'], ['bugsFiled', 'Bugs filed'], ['aiCommands', 'AI jobs'], ['focusBlocks', 'Focus blocks'], ['cleared', 'Items cleared']];
@@ -13,6 +13,8 @@
   async function fetchAll() {
     const j = (u) => fetch(u).then((r) => r.json()).catch(() => null);
     [H, stats, setupInfo] = await Promise.all([j('/api/home'), j(`/api/stats?range=${range}`), setupInfo ? setupInfo : j('/api/setup')]);
+    paint();
+    PJ = await j('/api/projects');
     paint();
   }
 
@@ -51,6 +53,8 @@
     return h('div', { class: 'hm-quick' },
       b('✦ New AI chat', () => { close(); window.openAIBubble?.('chat'); }),
       b('🗂 AI Center', () => { close(); window.openAICenter?.(); }),
+      b('◫ Projects', () => { close(); window.openProjects?.(); }),
+      b('🧭 Growth & HR', () => { close(); window.openHR?.(); }),
       b('⌨ Terminal', () => { close(); window.openTerminal?.(); }),
       b('🏆 Scoreboard', () => { close(); $('btn-score')?.click(); }),
       b('⚙ Settings', () => { close(); window.openSettings?.(); }));
@@ -136,6 +140,27 @@
     })) : h('div', { class: 'muted small' }, 'No open tasks. Use "Create task" on any item.'));
   }
 
+  // This quarter's projects (Jira epics) with progress; click one to open it in Projects.
+  function projectsCard() {
+    const open = (key) => () => { close(); window.openProjects?.(key); };
+    const all = h('button', { class: 'linkbtn', onclick: open(null) }, 'All projects');
+    if (!PJ) return card('Projects this quarter', h('div', { class: 'muted' }, 'Reading your epics…'), null, 'hm-span3');
+    if (PJ.error && !PJ.projects?.length) return card('Projects this quarter', h('div', { class: 'muted small' }, PJ.error), all, 'hm-span3');
+    const clean = (t) => String(t || '').replace(/^\s*\d{2}\s?Q[1-4]\s*[-–—:]?\s*/i, '').replace(/\s*[-–—]\s*\d{2}Q[1-4](\s*\/\s*\d{2}Q[1-4])*\s*$/i, '');
+    const active = PJ.projects.filter((p) => p.category !== 'done');
+    const done = PJ.projects.filter((p) => p.category === 'done');
+    const days = (d) => (d ? Math.ceil((new Date(`${d}T23:59:59`) - Date.now()) / 864e5) : null);
+    const pbar = (p) => { const c = p.counts || {}; return h('div', { class: 'prj-bar', title: `${c.done || 0} done · ${c.doing || 0} in progress · ${c.todo || 0} to do` }, c.total ? [h('i', { class: 'd', style: `width:${100 * c.done / c.total}%` }), h('i', { class: 'p', style: `width:${100 * c.doing / c.total}%` })] : null); };
+    return card(`Projects · ${PJ.quarter.slice(5)} ${PJ.quarter.slice(0, 4)}`, h('div', {},
+      active.length ? h('div', { class: 'hm-prj' }, active.slice(0, 10).map((p) => {
+        const due = p.due || p.nextDue, n = days(due);
+        return h('button', { class: 'hm-prj-row', onclick: open(p.key) },
+          h('b', { title: p.title }, clean(p.title)), pbar(p),
+          h('small', { class: 'muted' }, [p.counts?.total ? `${p.pct}%` : 'no stories', p.blockers ? `⛔ ${p.blockers}` : null, due ? (n < 0 ? `${-n}d late` : `due in ${n}d`) : null].filter(Boolean).join(' · ')));
+      })) : h('div', { class: 'muted small' }, 'No active projects this quarter.'),
+      h('div', { class: 'muted small hm-next' }, `${active.length} active · ${done.length} completed this quarter`, active.length > 10 ? ` · +${active.length - 10} more` : '')), all, 'hm-span3');
+  }
+
   function healthCard() {
     const needs = setupInfo?.needs;
     if (!needs) return card('Connections', h('div', { class: 'muted' }, 'Checking…'));
@@ -152,7 +177,7 @@
         h('button', { class: 'btn ghost', onclick: goToday }, 'Today’s missions'), h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'hm-scroll' }, h('div', { class: 'hm-wrap' },
         safe(hero), safe(quick),
-        h('div', { class: 'hm-grid' }, safe(todayCard), safe(healthCard), safe(statsCard), safe(aiCard), safe(heatCard), safe(winsCard), safe(tasksCard))))));
+        h('div', { class: 'hm-grid' }, safe(todayCard), safe(healthCard), safe(projectsCard), safe(statsCard), safe(aiCard), safe(heatCard), safe(winsCard), safe(tasksCard))))));
   }
 
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $(OV) && !$(OV).hidden) close(); });

@@ -244,6 +244,8 @@ async function sendCommand(step, text, warn, { fresh } = {}) {
 
 // Point the AI at one item: it becomes a chip on that section's bar and goes with the next message.
 function askAbout(sectionId, ref, prefill) {
+  // Views with their own AI box (Projects, HR) take the item there.
+  if (!chat[sectionId] && window.HQ_ASK?.[sectionId]) return window.HQ_ASK[sectionId](ref, prefill);
   const c = chat[sectionId];
   c.ref = ref;
   c.thread = null; // a new item starts a new chat

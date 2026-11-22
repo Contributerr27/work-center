@@ -11,7 +11,7 @@ const path = require('node:path');
 const { detect, which, sh, home, appSupport, readJson } = require('../detect');
 
 // Settings the page may change. Anything else in the file is left alone.
-const EDITABLE = ['owner', 'github', 'jira', 'ai', 'workDir', 'terminalCwd', 'prd', 'slackScan', 'mailScan'];
+const EDITABLE = ['owner', 'github', 'jira', 'ai', 'workDir', 'terminalCwd', 'prd', 'slackScan', 'mailScan', 'projects', 'hr'];
 const bad = (msg, status = 400) => Object.assign(new Error(msg), { status });
 
 // Where each tool keeps its MCP list, for copying a server into it. Claude goes through its CLI.

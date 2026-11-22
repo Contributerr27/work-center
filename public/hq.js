@@ -6,7 +6,10 @@ function itemActions(sectionId, ref) {
   const stop = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
   return h('span', { class: 'iacts' },
     h('button', { class: 'ibtn', title: 'Ask the AI about this', 'aria-label': 'Ask the AI about this', onclick: stop(() => askAbout(sectionId, ref)) }, '✦'),
-    h('button', { class: 'ibtn', title: 'Create a task from this (AI reads it and its linked docs)', 'aria-label': 'Create a task from this', onclick: stop(() => createTask(sectionId, ref)) }, '＋'));
+    h('button', { class: 'ibtn', title: 'Create a task from this (AI reads it and its linked docs)', 'aria-label': 'Create a task from this', onclick: stop(() => createTask(sectionId, ref)) }, '＋'),
+    // Jira items: open the project (epic) they belong to, with this item highlighted.
+    sectionId !== 'project' && /^[A-Z][A-Z0-9]+-\d+$/.test(ref?.key || '') && window.openProjectFor
+      ? h('button', { class: 'ibtn', title: `Open ${ref.key} in its project`, 'aria-label': `Open ${ref.key} in its project`, onclick: stop(() => window.openProjectFor(ref.key)) }, '◫') : null);
 }
 const refs = {
   slack: (i) => ({ type: 'slack', label: `${i.who}: ${i.summary}`, url: i.url, who: i.who, channel: i.channel, summary: i.summary, draft: i.draft, when: i.when }),
