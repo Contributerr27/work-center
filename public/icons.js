@@ -19,6 +19,7 @@
     expand: '<rect x="3" y="3.5" width="18" height="17" rx="2.5"/><path d="M9 3.5v17M14 10l2 2-2 2"/>',
     refresh: '<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6l2.5 2.5"/><path d="M20.5 3.5v5h-5"/>',
     scan: '<circle cx="10.5" cy="10.5" r="7"/><path d="m20.5 20.5-5-5"/><path d="M10.5 7.2l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z"/>',
+    music: '<path d="M9 17.5V5.5l11-2v12"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="15.5" r="2.5"/>',
     list: '<path d="M8.5 6.5h12M8.5 12h12M8.5 17.5h12"/><circle cx="4.5" cy="6.5" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="17.5" r="1"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
     // A snowflake (Winter workload marks).

@@ -563,7 +563,7 @@ const writeState = (st) => fs.writeFileSync(STATE, JSON.stringify(st, null, 2));
 const ctx = {
   config, ROOT, DATA, PARTS, TASK_DIR, env, expand, token: TOKEN,
   // route('GET'|'POST', '/api/x', async ({ url, body, req }) => result) — POSTs are token-checked;
-  // return a value (sent as JSON) or { status, body }.
+  // return a value (sent as JSON), { status, body }, or { status, html } for a page.
   route: (method, p, fn) => routes.push({ method, p, fn }),
   // provide('name', async () => data): included in /api/all as D.ext.name
   provide: (name, fn) => (provided[name] = fn),
@@ -596,7 +596,7 @@ ctx.route('POST', '/api/ui/state', ({ body }) => {
   return { ok: true };
 });
 ctx.route('POST', '/api/ui/panel', ({ body }) => {
-  if (!ui.handler || !['ai', 'phone'].includes(body?.name)) return { handled: false };
+  if (!ui.handler || !['ai', 'phone', 'music'].includes(body?.name)) return { handled: false };
   return { handled: !!ui.handler('panel', { name: body.name, open: body.open, toggle: !!body.toggle, quote: body.quote && typeof body.quote === 'object' ? body.quote : null }) };
 });
 ctx.route('POST', '/api/ui/main', ({ body }) => {
@@ -664,6 +664,7 @@ const server = http.createServer(async (req, res) => {
     if (r) {
       try {
         const out = await r.fn({ req, url, body: req.method === 'POST' ? await body(req) : null });
+        if (out && typeof out === 'object' && typeof out.html === 'string') { res.writeHead(out.status || 200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(out.html); }
         return out && typeof out === 'object' && 'status' in out && 'body' in out ? send(res, out.status, out.body) : send(res, 200, out ?? { ok: true });
       } catch (e) {
         return send(res, e.status || 500, { error: e.message });

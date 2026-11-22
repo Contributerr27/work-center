@@ -120,6 +120,11 @@ Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when 
   a period (copy each answer), and AI feedback with a 0–100 score across seven areas from your work and your
   manager conversations, with suggested improvements and a coach chat. Settings `hr`: `manager`, `reviewQuestions`,
   `ratingScale`, `focus`. All of it stays in `data/hr` on this computer.
+- **♪ Music:** a side panel (under Messages in the sidebar) with what's playing on Spotify, play/pause/skip, the
+  playlists and albums you played last, and your own playlists. Connect once with your own Spotify developer
+  app's Client ID (PKCE login in the browser, no client secret); the refresh token is encrypted with the macOS
+  Keychain in `data/music.json`. Playing goes to the Spotify desktop app when it's installed (free or Premium),
+  otherwise to your open Spotify device through the Web API (Premium), otherwise the playlist opens in Spotify.
 
 ## Themes
 

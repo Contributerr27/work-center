@@ -83,6 +83,7 @@ npm run dist:mac    # build Work Center.app (copy it to ~/Applications)
 | GitHub | PRs, reviews, CI health | `gh auth login` |
 | Jira | sprint, bugs, PRDs, projects | the `twg` CLI, logged in |
 | Slack, calendar, email, meeting notes | messages that need you, meeting prep | whatever your AI tool is connected to (MCP or account connectors) |
+| Spotify (optional) | a **Music** panel: now playing and your recent playlists, one click to play | open **Music** in the sidebar and follow the three steps (your own free Spotify developer app; no secret) |
 
 Missing a connection? That part of the page says so and the rest keeps working.
 

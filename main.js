@@ -64,8 +64,8 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
     win.loadURL(url);
   }
 
-  /* ---------- Side panels: AI chat on the right edge, Messages on the left, attached to the window ---------- */
-  const PANEL = { ai: { side: 'right', width: 460 }, phone: { side: 'left', width: 380 } };
+  /* ---------- Side panels: AI chat on the right edge, Messages and Music on the left, attached to the window ---------- */
+  const PANEL = { ai: { side: 'right', width: 460 }, phone: { side: 'left', width: 380 }, music: { side: 'left', width: 360 } };
   const panels = {};
   const safeOpen = (w) => {
     w.webContents.setWindowOpenHandler(({ url: target }) => { if (EXTERNAL.test(target)) shell.openExternal(target); return { action: 'deny' }; });
@@ -101,6 +101,8 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
       p.on('closed', () => delete panels[name]);
       p.loadURL(`${url}?panel=${name}`);
     }
+    // One panel per side: opening Music tucks Messages away, and the other way round.
+    for (const [n, o] of Object.entries(panels)) if (n !== name && PANEL[n].side === PANEL[name].side && !o.isDestroyed() && o.isVisible()) o.hide();
     placePanel(name);
     p.show();
     p.focus();
