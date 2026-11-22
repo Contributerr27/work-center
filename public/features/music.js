@@ -9,6 +9,7 @@
   let showMine = false;
   let typed = '';
   let devs = null; // device list while the picker is open
+  let needApp = false; // nothing can play here: show how to fix it
   let query = '';
   let found = null; // search results
   let searchT = null;
@@ -41,11 +42,11 @@
     busy = item.uri; draw();
     try {
       const r = await post('/api/music/play', { uri: item.uri });
-      if (r.via === 'link') {
-        await post('/api/open', { href: r.url }).catch(() => {});
-        toast(r.reason === 'premium' ? 'Opened in Spotify: starting playback from Work Center needs Premium'
-          : r.reason === 'no-device' ? 'No Spotify device is open, so it opened in Spotify. Next time it plays right here.'
-          : 'Opened in Spotify');
+      if (r.via === 'none') {
+        needApp = r.reason === 'no-device' && !M.app;
+        toast(r.reason === 'premium' ? 'Starting music from Work Center needs Spotify Premium, or the Spotify app on this Mac.'
+          : M.app ? 'Spotify isn\'t answering yet. Try again in a moment.' : 'No Spotify player is on. Install the Spotify app to play right here.');
+        draw();
       } else toast(`Playing ${item.name}${r.device ? ` on ${r.device}` : ''}`);
       setTimeout(tick, 1200);
     } catch (e) { toast(e.message); }
@@ -80,17 +81,8 @@
     moving = 'here'; draw();
     try {
       const r = await post('/api/music/here');
-      if (r.ok) { devs = null; toast(`Playing on ${r.device}`); }
-      else {
-        await post('/api/open', { href: r.open });
-        toast('Opening the Spotify web player in your browser. Once it loads, music moves to this Mac.');
-        // The web player shows up as a device a few seconds after it loads.
-        for (let i = 0; i < 30; i++) {
-          await new Promise((res) => setTimeout(res, 3000));
-          const d = ((await (await fetch('/api/music/devices')).json()).devices || []).find((x) => x.here);
-          if (d) { await post('/api/music/device', { id: d.id }); devs = null; toast('Playing on this Mac (web player). If it stays silent, press play once in that tab.'); break; }
-        }
-      }
+      if (r.ok) { devs = null; needApp = false; toast(`Playing on ${r.device}`); }
+      else { devs = null; needApp = true; }
     } catch (e) { toast(e.message); }
     moving = null; setTimeout(tick, 800); draw();
   }
@@ -103,7 +95,7 @@
     return h('div', { class: 'mu-devs', role: 'list' },
       h('button', { class: `mu-dev here ${hereDev?.active ? 'on' : ''}`, disabled: moving === 'here', onclick: playHere },
         h('span', { class: 'mu-dev-i', 'aria-hidden': 'true' }, '💻'),
-        h('span', { class: 'mu-dev-n' }, h('b', {}, 'This Mac'), h('small', {}, hereDev ? hereDev.name : M.app ? 'Spotify app' : 'Spotify web player in your browser')),
+        h('span', { class: 'mu-dev-n' }, h('b', {}, 'This Mac'), h('small', {}, M.app ? 'Spotify app, in the background' : hereDev ? hereDev.name : 'Needs the Spotify app')),
         hereDev?.active ? h('small', {}, 'playing') : moving === 'here' ? h('span', { class: 'mu-spin dark' }) : null),
       devs.length || moving ? rows : h('div', { class: 'muted small mu-dev-empty' }, 'Looking for devices…'));
   }
@@ -182,6 +174,12 @@
     if (!M) return el.replaceChildren(h('div', { class: 'mu' }, head, h('div', { class: 'empty' }, 'Loading…')));
     const body = [];
     if (M.connected || M.app || M.demo) body.push(nowCard());
+    if (needApp && !M.app) body.push(h('div', { class: 'mu-need' },
+      h('b', {}, 'Play on this Mac without a browser'),
+      h('p', {}, 'Work Center can\'t play Spotify audio itself (Spotify only streams to its own players). Install the free Spotify app once: Work Center starts it hidden in the background and controls it from here, so you never have to open it.'),
+      h('div', { class: 'mu-need-acts' },
+        h('a', { class: 'btn sm go', href: 'https://www.spotify.com/download/mac/' }, 'Get the Spotify app'),
+        h('button', { class: 'btn sm ghost', onclick: () => { needApp = false; draw(); } }, 'Not now'))));
     if (M.connected) {
       if (M.error) body.push(h('div', { class: 'blocked small' }, M.error));
       body.push(searchBox());

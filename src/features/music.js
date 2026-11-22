@@ -39,8 +39,15 @@ const desktop = {
     const [state, name, artist, art, uri] = out.split('\n');
     return name ? { playing: state === 'playing', name, artist, image: art || null, uri, device: 'Spotify app' } : null;
   },
-  play: (uri) => osa(`tell application "Spotify" to play track "${uri}"`),
-  control: (a) => osa(`tell application "Spotify" to ${{ toggle: 'playpause', next: 'next track', prev: 'previous track' }[a]}`),
+  // Start the app hidden in the background (no window, no focus) and wait until it answers.
+  async wake() {
+    if (await this.running()) return;
+    execFile('open', ['-g', '-j', '-a', appPath()]);
+    for (let i = 0; i < 30 && !(await this.running()); i++) await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 1500)); // it logs in before it accepts play commands
+  },
+  async play(uri) { await this.wake(); return osa(`tell application "Spotify" to play track "${uri}"`); },
+  async control(a) { await this.wake(); return osa(`tell application "Spotify" to ${{ toggle: 'playpause', next: 'next track', prev: 'previous track' }[a]}`); },
 };
 
 // ---------- Demo data (npm run demo) ----------
@@ -184,16 +191,16 @@ module.exports = {
       if (!URI.test(uri)) throw err('Not a Spotify link');
       if (DEMO) { demoNow = { ...demoNow, ...DEMO_LISTS.find((x) => x.uri === uri), name: 'Quiet Morning', artist: 'The Placeholders', playing: true, context: uri }; return { via: 'demo' }; }
       if (appPath()) { await desktop.play(uri); return { via: 'app' }; }
-      if (!read().refresh) return { via: 'link', url: webUrl(uri) };
+      if (!read().refresh) return { via: 'none', reason: 'no-device', url: webUrl(uri) };
       try {
         const devices = (await api('/me/player/devices'))?.devices || [];
         const dev = devices.find((d) => d.is_active) || devices[0];
-        if (!dev) return { via: 'link', url: webUrl(uri), reason: 'no-device' };
+        if (!dev) return { via: 'none', reason: 'no-device', url: webUrl(uri) };
         const what = uri.startsWith('spotify:track:') ? { uris: [uri] } : { context_uri: uri };
         await api(`/me/player/play?device_id=${encodeURIComponent(dev.id)}`, { method: 'PUT', body: JSON.stringify(what) });
         return { via: 'api', device: dev.name };
       } catch (e) {
-        if (e.reason === 'PREMIUM_REQUIRED' || e.status === 403) { write({ ...read(), premium: false }); return { via: 'link', url: webUrl(uri), reason: 'premium' }; }
+        if (e.reason === 'PREMIUM_REQUIRED' || e.status === 403) { write({ ...read(), premium: false }); return { via: 'none', url: webUrl(uri), reason: 'premium' }; }
         throw e;
       }
     });
@@ -243,18 +250,23 @@ module.exports = {
       await transfer(id);
       return { ok: true };
     });
-    // Play on this Mac: start the Spotify app (or a web player when it isn't installed), wait until it shows up
-    // as a device, then move playback to it.
+    // Play on this Mac: start the Spotify app hidden in the background and move playback to it. Without the app,
+    // an open web player tab is used; Work Center never opens the browser on its own.
     ctx.route('POST', '/api/music/here', async () => {
       if (DEMO) { DEMO_DEVICES.forEach((d) => (d.active = d.here)); demoNow = { ...demoNow, device: 'This Mac', playing: true }; return { ok: true, device: 'This Mac' }; }
-      let here = (await devices()).find((d) => d.here);
-      if (!here && appPath()) {
-        execFile('open', ['-a', appPath()]);
-        for (let i = 0; i < 20 && !here; i++) { await new Promise((r) => setTimeout(r, 1000)); here = (await devices().catch(() => [])).find((d) => d.here); }
+      if (appPath()) {
+        await desktop.wake();
+        let here = (await devices().catch(() => [])).find((d) => d.here && !/^web player/i.test(d.name));
+        for (let i = 0; i < 10 && !here; i++) { await new Promise((r) => setTimeout(r, 1000)); here = (await devices().catch(() => [])).find((d) => d.here && !/^web player/i.test(d.name)); }
+        if (here && !here.active) await transfer(here.id).catch(() => {});
+        // A transfer can land paused: make sure it plays.
+        await new Promise((r) => setTimeout(r, 800));
+        await osa('tell application "Spotify" to play').catch(() => {});
+        return { ok: true, device: 'this Mac' };
       }
-      if (!here) return { ok: false, open: 'https://open.spotify.com/' };
-      if (!here.active) await transfer(here.id);
-      return { ok: true, device: here.name };
+      const web = (await devices()).find((d) => d.here);
+      if (web) { if (!web.active) await transfer(web.id); return { ok: true, device: web.name }; }
+      return { ok: false, needApp: true };
     });
 
     ctx.route('POST', '/api/music/control', async ({ body }) => {

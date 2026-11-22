@@ -95,3 +95,8 @@ html.panel-music .mu { border-radius: 30px; box-shadow: none; }
 /* Quick search */
 .mu-search { padding: 6px 2px 0; }
 .mu-search input { width: 100%; box-sizing: border-box; border-radius: 10px; padding: 8px 12px; }
+
+/* Nothing can play on this Mac yet */
+.mu-need { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 14px; background: var(--amber-bg); color: var(--text); font-size: 13px; line-height: 1.45; }
+.mu-need p { margin: 0; }
+.mu-need-acts { display: flex; gap: 6px; }
