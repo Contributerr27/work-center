@@ -1,6 +1,7 @@
 // Electron shell: starts the local server and shows it in a native window (macOS, Windows, Linux),
 // plus the menu-bar icon, quick-capture hotkey, launch at login and morning scan (src/tray.js).
 const { app, BrowserWindow, shell, nativeTheme, screen, nativeImage, dialog } = require('electron');
+const EXTERNAL = /^(https?:|slack:|mailto:)/i; // links the app may hand to the system
 const path = require('node:path');
 const { start, onUi } = require('./src/server');
 const osx = require('./src/tray');
@@ -39,13 +40,13 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
     });
     // Links (GitHub, Jira, Slack, Notion) open in the real browser, never inside the app.
     win.webContents.setWindowOpenHandler(({ url: target }) => {
-      if (/^https?:|^slack:/.test(target)) shell.openExternal(target);
+      if (EXTERNAL.test(target)) shell.openExternal(target);
       return { action: 'deny' };
     });
     win.webContents.on('will-navigate', (e, target) => {
-      if (!target.startsWith(url)) {
+      if (!target.startsWith(`${url}/`) && target !== url) {
         e.preventDefault();
-        shell.openExternal(target);
+        if (EXTERNAL.test(target)) shell.openExternal(target); // web, Slack and mail links only; never file: or other schemes
       }
     });
     // macOS: closing the window keeps Work Center running in the menu bar (Cmd+Q or "Quit" really quits).
@@ -67,8 +68,8 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
   const PANEL = { ai: { side: 'right', width: 460 }, phone: { side: 'left', width: 380 } };
   const panels = {};
   const safeOpen = (w) => {
-    w.webContents.setWindowOpenHandler(({ url: target }) => { if (/^https?:|^slack:/.test(target)) shell.openExternal(target); return { action: 'deny' }; });
-    w.webContents.on('will-navigate', (e, target) => { if (!target.startsWith(url)) { e.preventDefault(); shell.openExternal(target); } });
+    w.webContents.setWindowOpenHandler(({ url: target }) => { if (EXTERNAL.test(target)) shell.openExternal(target); return { action: 'deny' }; });
+    w.webContents.on('will-navigate', (e, target) => { if (!target.startsWith(`${url}/`) && target !== url) { e.preventDefault(); if (EXTERNAL.test(target)) shell.openExternal(target); } });
   };
   function placePanel(name) {
     const p = panels[name];

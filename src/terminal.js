@@ -104,13 +104,13 @@ function onMessage(raw) {
   }
 }
 
-function attachTerminal(httpServer, { token, cwd, command = 'claude', args = [], env = {} } = {}) {
+function attachTerminal(httpServer, { allow, token, cwd, command = 'claude', args = [], env = {} } = {}) {
   state.opts = { cwd, command, args, env };
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
   httpServer.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url, 'http://localhost');
     if (url.pathname !== WS_PATH) return; // leave other upgrade paths to other handlers
-    if (!token || url.searchParams.get('token') !== token) {
+    if (!token || url.searchParams.get('token') !== token || (allow && !allow(req))) {
       socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;

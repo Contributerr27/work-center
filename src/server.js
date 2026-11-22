@@ -409,7 +409,7 @@ function createTask(section, ref) {
     '    "due": "YYYY-MM-DD or null", "priority": "P0 | P1 | P2",',
     '    "steps": [{"text": "verb-first step, max 12 words", "done": false}],',
     '    "links": [{"label": "short name", "url": "https://…"}]}',
-    '   3 to 8 steps in the order he should do them; the last step is usually closing the loop with the requester. Links: the sources you used.',
+    '   3 to 8 steps in the order they should be done; the last step is usually closing the loop with the requester. Links: the sources you used.',
     '4. Reply with one line: the task title and the number of steps.',
     refText(ref),
   ].join('\n');
@@ -641,8 +641,19 @@ function featuresScript() {
   return `(function(){var css=${JSON.stringify(css)},js=${JSON.stringify(js)};css.forEach(function(h){var l=document.createElement('link');l.rel='stylesheet';l.href=h;document.head.appendChild(l);});js.reduce(function(p,s){return p.then(function(){return new Promise(function(r){var e=document.createElement('script');e.src=s;e.onload=e.onerror=r;document.body.appendChild(e);});});},Promise.resolve()).then(function(){window.HQ&&HQ._loaded();});})();`;
 }
 
+// Only this computer's own pages may talk to the server. A Host check blocks DNS rebinding (a web page
+// pointing its own domain at 127.0.0.1 to read this API); an Origin check blocks cross-site requests.
+function localOnly(req) {
+  const port = server.address()?.port;
+  const hosts = [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`];
+  if (!hosts.includes(String(req.headers.host || '').toLowerCase())) return false;
+  const origin = req.headers.origin;
+  if (origin && !hosts.some((h) => origin.toLowerCase() === `http://${h}`)) return false;
+  return true;
+}
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  if (!localOnly(req)) { res.writeHead(403, { 'content-type': 'text/plain' }); return res.end('Forbidden'); }
   try {
     if (req.method === 'POST' && req.headers['x-desk-token'] !== TOKEN) return send(res, 403, { error: 'Bad token' });
     if (url.pathname === '/features.js') {
@@ -826,7 +837,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-term.attachTerminal(server, { token: TOKEN, cwd: config.terminalCwd || config.workDir || config.jira?.qaWorkDir || '~', command: () => engine.current(config)?.bin || 'claude' });
+term.attachTerminal(server, { allow: localOnly, token: TOKEN, cwd: config.terminalCwd || config.workDir || config.jira?.qaWorkDir || '~', command: () => engine.current(config)?.bin || 'claude' });
 process.on('exit', () => term.stopTerminal());
 
 function start() {

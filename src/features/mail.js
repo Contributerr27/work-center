@@ -76,7 +76,7 @@ function setup(ctx) {
   });
 
   // Done only when the run actually changed the RSVP: then the invite clears itself from the phone.
-  // If it didn't, the invite stays with the reason so he can retry or open it.
+  // If it didn't, the invite stays with the reason so the person can retry or open it.
   function settleInvites() {
     const file = path.join(ctx.DATA, 'pings.json');
     let p;

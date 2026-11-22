@@ -77,7 +77,7 @@ function setup(ctx) {
       schedule: { everyMinutes: 30, days: [1, 2, 3, 4, 5], fromHour: 9, toHour: 19 },
       prompt: [
         'Find my Granola meetings that ended in the last 2 hours (search_meetings, then get_meetings; the transcript only if the notes are thin). Skip every meeting whose id is in the processed list below.',
-        `For each remaining meeting, read the notes. Every action item that ${ownerFirst} owns becomes a task; everything ${ownerFirst} promised someone becomes a follow-up item with a short draft message he can send himself.`,
+        `For each remaining meeting, read the notes. Every action item that ${ownerFirst} owns becomes a task; everything ${ownerFirst} promised someone becomes a follow-up item with a short draft message they can send themselves.`,
         'Read-only everywhere: do not send, post, comment, create tickets, calendar events or documents. The only file you write is the JSON result file named below.',
       ].join(' '),
     },
@@ -185,9 +185,9 @@ function setup(ctx) {
         '  "tasks": [{ "title": "short task name, max 60 chars", "summary": "one line: what, for whom, by when if known", "due": "YYYY-MM-DD or null",',
         '     "priority": "P0 | P1 | P2", "steps": [{ "text": "verb-first step, max 12 words", "done": false }],',
         '     "links": [{ "label": "short name", "url": "https://…" }], "meeting": { "title": "", "url": "Granola note url" } }],',
-        '  "pings": [{ "who": "person he promised", "channel": "meeting title", "when": "ISO time the meeting ended", "kind": "follow-up",',
-        '     "urgency": 1, "summary": "what he promised, max 90 chars", "url": "Granola note url", "draft": "short follow-up message he can send" }] }',
-        'Tasks: 2 to 6 steps each, only for action items he owns. Pings: only for promises to a person. Empty arrays are fine. Validate the file is valid JSON.',
+        '  "pings": [{ "who": "person they promised", "channel": "meeting title", "when": "ISO time the meeting ended", "kind": "follow-up",',
+        '     "urgency": 1, "summary": "what they promised, max 90 chars", "url": "Granola note url", "draft": "short follow-up message they can send" }] }',
+        'Tasks: 2 to 6 steps each, only for action items they own. Pings: only for promises to a person. Empty arrays are fine. Validate the file is valid JSON.',
       );
     }
     return lines.join('\n');
