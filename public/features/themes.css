@@ -3,7 +3,7 @@
    Tokens live in app.css (:root[data-theme=…]); backdrops are public/themes/<theme>.jpg (build/make-art.js). */
 
 /* ---------- theme picker ---------- */
-#theme-menu { position: fixed; z-index: 60; width: 290px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 16px 40px rgba(0, 0, 0, .25); display: flex; flex-direction: column; gap: 2px; }
+#theme-menu { position: fixed; z-index: 60; width: 290px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 16px 40px rgba(0, 0, 0, .25); display: flex; flex-direction: column; gap: 2px; max-height: calc(100vh - 16px); overflow: auto; }
 #theme-menu[hidden] { display: none; }
 .tm-title { font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 8px 4px; }
 .tm-item { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; padding: 8px; border-radius: 10px; cursor: pointer; }
@@ -14,6 +14,10 @@
 .tm-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .tm-t small { color: var(--muted); font-size: 12px; }
 .tm-ck { color: var(--blue); font-weight: 800; }
+.tm-rm { margin-left: 2px; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); font-size: 16px; line-height: 1; flex: none; }
+.tm-rm:hover, .tm-rm:focus-visible { background: var(--red-bg); color: var(--red); }
+.tm-foot { display: flex; gap: 6px; padding: 8px 6px 4px; margin-top: 4px; border-top: 1px solid var(--line); }
+.tm-broken { font-size: 11.5px; color: var(--amber); padding: 4px 8px; max-width: 320px; }
 
 /* ---------- icons (public/icons.js) ---------- */
 .ic { width: 1.2em; height: 1.2em; flex: none; fill: none; stroke: currentColor; stroke-width: var(--ic-w, 1.7); stroke-linecap: round; stroke-linejoin: round; vertical-align: -.22em; }

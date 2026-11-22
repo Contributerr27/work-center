@@ -90,8 +90,62 @@ html.aic-open, html.aic-open body { overflow: hidden; }
 @keyframes orb-breathe { 0%, 100% { transform: scale(.82); opacity: .75; } 50% { transform: scale(1.04); opacity: 1; } }
 @keyframes orb-glow { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 10px 30px rgba(59, 130, 246, .3), 0 0 18px rgba(139, 92, 246, .35); }
   50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 10px 34px rgba(59, 130, 246, .45), 0 0 34px rgba(139, 92, 246, .6); } }
-@media (prefers-reduced-motion: reduce) { #aib-fab, .orb-ring, .orb-core, .orb-spark { animation: none !important; } }
-[data-theme="vice"] #aib-fab { --o1: #ff2e93; --o2: #ff9a3d; --o3: #4fd8ff; --o4: #b14bff; }
+.orb-ic svg.ic { width: 19px; height: 19px; stroke: #fff; fill: none; stroke-width: 1.8; filter: drop-shadow(0 0 4px rgba(255, 255, 255, .85)); }
+.orb-ic svg.ic path:first-child { fill: rgba(255, 255, 255, .85); }
+/* Theme scenery inside the orb: hidden unless the theme turns it on. */
+.orb-sun, .orb-scan, .orb-snow { display: none; }
+
+/* Winter: a frosted ice orb. Pale ice ring with a frost shimmer, a slowly turning snowflake, snow falling inside. */
+[data-theme="winter"] #aib-fab {
+  --o1: #e8f4ff; --o2: #9fd0ff; --o3: #ffffff; --o4: #5fa6e8;
+  background: radial-gradient(circle at 35% 28%, #3d6fa8 0, #1d3f6e 55%, #0e2446 100%);
+  animation-name: orb-frost;
+}
+[data-theme="winter"] .orb-core { background: radial-gradient(circle at 40% 36%, #fff 0 8%, rgba(200, 230, 255, .9) 26%, rgba(120, 180, 240, .55) 50%, transparent 72%); filter: blur(2px); }
+[data-theme="winter"] .orb-spark { background: conic-gradient(from 90deg, transparent 0 70%, rgba(255, 255, 255, .9) 82%, transparent 92%); animation-duration: 4.2s; }
+[data-theme="winter"] .orb-ring { animation-duration: 9s; filter: blur(.2px); }
+[data-theme="winter"] .orb-ic svg.ic { animation: orb-flake 14s linear infinite; stroke-width: 1.6; }
+[data-theme="winter"] .orb-ic svg.ic path:first-child { fill: none; }
+[data-theme="winter"] .orb-snow { display: block; position: absolute; inset: 0; border-radius: 50%; overflow: hidden; }
+.orb-snow .f { position: absolute; top: -6px; width: 3px; height: 3px; border-radius: 50%; background: #fff; opacity: .9; box-shadow: 0 0 3px #fff; animation: orb-fall 3.2s linear infinite; }
+.orb-snow .f1 { left: 22%; animation-delay: -.2s; } .orb-snow .f2 { left: 38%; width: 2px; height: 2px; animation-delay: -1.4s; animation-duration: 3.8s; }
+.orb-snow .f3 { left: 55%; animation-delay: -2.1s; } .orb-snow .f4 { left: 70%; width: 2px; height: 2px; animation-delay: -.8s; animation-duration: 4.2s; }
+.orb-snow .f5 { left: 30%; width: 2px; height: 2px; animation-delay: -2.9s; } .orb-snow .f6 { left: 62%; animation-delay: -3.4s; animation-duration: 3.5s; }
+.orb-snow .f7 { left: 78%; width: 2px; height: 2px; animation-delay: -1.9s; }
+[data-theme="winter"] #aib-fab.busy .orb-ic svg.ic { animation-duration: 2.4s; }
+[data-theme="winter"] #aib-fab.busy .orb-snow .f { animation-duration: 1.3s; }
+@keyframes orb-flake { to { transform: rotate(360deg); } }
+@keyframes orb-fall { 0% { transform: translate(0, 0); } 50% { transform: translate(3px, 32px); } 100% { transform: translate(-2px, 66px); opacity: .2; } }
+@keyframes orb-frost { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .35), 0 10px 28px rgba(30, 70, 130, .35), 0 0 16px rgba(170, 215, 255, .45); }
+  50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .55), 0 10px 32px rgba(30, 70, 130, .45), 0 0 30px rgba(200, 235, 255, .8); } }
+
+/* Vice: a neon sunset orb. A striped retro sun bobs on the horizon, scanlines roll, the neon ring pulses. */
+[data-theme="vice"] #aib-fab {
+  --o1: #ff2e93; --o2: #ff9a3d; --o3: #4fd8ff; --o4: #b14bff;
+  background: linear-gradient(180deg, #1a0838 0%, #4a0f5e 52%, #12052b 52%, #0b0320 100%);
+  animation-name: orb-neon;
+}
+[data-theme="vice"] .orb-sun { display: block; position: absolute; left: 50%; top: 18%; width: 64%; height: 64%; margin-left: -32%; border-radius: 50%;
+  background: linear-gradient(180deg, #fff3a6 0%, #ffb347 45%, #ff3d7f 100%);
+  -webkit-mask: linear-gradient(180deg, #000 0 52%, transparent 52% 57%, #000 57% 64%, transparent 64% 70%, #000 70% 76%, transparent 76% 83%, #000 83%);
+  mask: linear-gradient(180deg, #000 0 52%, transparent 52% 57%, #000 57% 64%, transparent 64% 70%, #000 70% 76%, transparent 76% 83%, #000 83%);
+  filter: drop-shadow(0 0 6px rgba(255, 80, 150, .8)); animation: orb-bob 3.6s ease-in-out infinite; opacity: .95; }
+[data-theme="vice"] .orb-scan { display: block; position: absolute; inset: 0; border-radius: 50%;
+  background: repeating-linear-gradient(180deg, rgba(79, 216, 255, .0) 0 3px, rgba(79, 216, 255, .22) 3px 4px);
+  -webkit-mask: linear-gradient(180deg, transparent 0 54%, #000 60%); mask: linear-gradient(180deg, transparent 0 54%, #000 60%);
+  animation: orb-roll 1.6s linear infinite; }
+[data-theme="vice"] .orb-core { display: none; }
+[data-theme="vice"] .orb-ring { animation-duration: 3.4s; filter: blur(.3px) saturate(1.4); }
+[data-theme="vice"] .orb-ic svg.ic { stroke: #fff; filter: drop-shadow(0 0 3px #ff2e93) drop-shadow(0 0 7px #4fd8ff); animation: orb-flicker 4s steps(1) infinite; }
+[data-theme="vice"] #aib-fab.busy .orb-sun { animation-duration: 1.2s; }
+[data-theme="vice"] #aib-fab.busy .orb-scan { animation-duration: .6s; }
+@keyframes orb-bob { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-3px); } }
+@keyframes orb-roll { to { background-position: 0 8px; } }
+@keyframes orb-flicker { 0%, 100% { opacity: 1; } 91% { opacity: 1; } 92% { opacity: .35; } 93% { opacity: 1; } 95% { opacity: .6; } 96% { opacity: 1; } }
+@keyframes orb-neon { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 46, 147, .5), 0 10px 28px rgba(255, 46, 147, .3), 0 0 16px rgba(79, 216, 255, .4); }
+  50% { box-shadow: 0 0 0 1px rgba(79, 216, 255, .7), 0 10px 34px rgba(255, 46, 147, .5), 0 0 34px rgba(255, 46, 147, .7); } }
+
+@media (prefers-reduced-motion: reduce) { #aib-fab, .orb-ring, .orb-core, .orb-spark, .orb-sun, .orb-scan, .orb-snow .f, .orb-ic svg.ic { animation: none !important; } }
 html.term-open #aib-fab { display: none; }
 .aic-reply { padding-right: 96px !important; }
 .aib-ctx { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }

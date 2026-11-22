@@ -89,7 +89,7 @@
     const mine = P.cmds.filter((c) => th && c.thread === th).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
     const msgs = mine.length ? mine.flatMap((c) => [
       h('div', { class: 'aic-msg me' }, h('div', { class: 'aic-bub' }, c.text)),
-      c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || c.result || 'Done.'), liveFeed(c)),
+      c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || window.md(c.result || 'Done.')), liveFeed(c)),
     ]) : [h('div', { class: 'aib-sugg' }, ['What is left to hit the deadline?', 'Draft a status update for this project', 'Which story should I pick up next?', 'Break down the blocked items'].map((s) => h('button', { class: 'chip', onclick: () => send(s) }, s)))];
     return h('div', { class: 'prj-chat', id: 'prj-chat' },
       h('div', { class: 'prj-msgs', id: 'prj-msgs' }, msgs),
@@ -102,8 +102,9 @@
     const el = $('prj-chat');
     if (!el) return;
     const keep = document.activeElement?.closest?.('#prj-chat') ? document.activeElement.selectionStart : null;
+    const st = chatPos($('prj-msgs'));
     el.replaceWith(chatBox());
-    const m = $('prj-msgs'); if (m) m.scrollTop = m.scrollHeight;
+    restoreChat($('prj-msgs'), st);
     if (keep != null) { const i = $('prj-chat').querySelector('input'); i.focus(); try { i.setSelectionRange(keep, keep); } catch (e) { /* */ } }
   }
 
@@ -239,6 +240,7 @@
     const ov = $(OV);
     if (!ov || ov.hidden) return;
     const keep = document.querySelector(`#${OV} .prj-scroll`)?.scrollTop;
+    const chatSt = chatPos($('prj-msgs'));
     ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'Projects' },
       h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('projects') : null, 'Projects'),
         h('span', { class: 'muted small' }, P.list ? `${P.list.filter((p) => p.category !== 'done').length} active · ${P.list.filter((p) => p.category === 'done').length} completed in ${qLabel(P.quarter)}` : ''),
@@ -248,9 +250,12 @@
         h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'aic-body' }, side(), main())));
     const sc = document.querySelector(`#${OV} .prj-scroll`);
-    if (P.focus && $(`prj-row-${P.focus}`)) { $(`prj-row-${P.focus}`).scrollIntoView({ block: 'center' }); }
+    // Jump to the focused item once, when it is first shown; later repaints (an AI run updating the
+    // project) keep your scroll position.
+    const fk = P.focus && `${P.sel}|${P.focus}`;
+    if (fk && fk !== P.scrolledTo && $(`prj-row-${P.focus}`)) { P.scrolledTo = fk; $(`prj-row-${P.focus}`).scrollIntoView({ block: 'center' }); }
     else if (sc && keep) sc.scrollTop = keep;
-    const m = $('prj-msgs'); if (m) m.scrollTop = m.scrollHeight;
+    restoreChat($('prj-msgs'), chatSt);
   }
 
   // For the blocked-item tooltip: what this view already knows about an item.

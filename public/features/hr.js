@@ -80,7 +80,7 @@
     return h('div', { class: 'prj-chat', id: 'hr-chat' },
       h('div', { class: 'prj-msgs', id: 'hr-msgs' }, mine.length ? mine.flatMap((c) => [
         h('div', { class: 'aic-msg me' }, h('div', { class: 'aic-bub' }, strip(c.text))),
-        c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || c.result || 'Done.')),
+        c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || window.md(c.result || 'Done.'))),
       ]) : h('div', { class: 'aib-sugg' }, ['Prep talking points for my next 1:1', 'What would get me to the next level?', 'What feedback should I ask my manager for?', 'Turn my last month into 3 wins'].map((s) => h('button', { class: 'chip', onclick: () => send(s) }, s)))),
       h('form', { class: 'prj-ask', onsubmit: (e) => { e.preventDefault(); send(); } },
         h('input', { class: 'st-in', placeholder: 'Ask your coach…', value: S.draft, oninput: (e) => (S.draft = e.target.value) }),
@@ -91,8 +91,9 @@
     const el = $('hr-chat');
     if (!el) return;
     const focused = document.activeElement?.closest?.('#hr-chat');
+    const st = chatPos($('hr-msgs'));
     el.replaceWith(chatBox());
-    const m = $('hr-msgs'); if (m) m.scrollTop = m.scrollHeight;
+    restoreChat($('hr-msgs'), st);
     if (focused) $('hr-chat').querySelector('input').focus();
   }
 
@@ -218,6 +219,7 @@
     const d = S.data;
     const tabs = [['overview', 'Overview'], ['review', 'Self-review'], ['feedback', 'Feedback & score'], ['org', 'Org chart'], ['settings', 'Settings']];
     const keep = document.querySelector(`#${OV} .prj-scroll`)?.scrollTop;
+    const chatSt = chatPos($('hr-msgs'));
     ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'Growth and HR' },
       h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('growth') : null, 'Growth & HR'),
         h('nav', { class: 'aib-modes hr-tabs' }, tabs.map(([id, label]) => h('button', { class: `aib-mode ${S.tab === id ? 'on' : ''}`, onclick: () => { S.tab = id; paint(); } }, label))),
@@ -226,7 +228,7 @@
         !d ? h('div', { class: 'muted' }, 'Loading…') : d.error ? h('div', { class: 'blocked' }, d.error)
           : { overview, review: reviewTab, feedback: feedbackTab, org: orgTab, settings: settingsTab }[S.tab]()))));
     const sc = document.querySelector(`#${OV} .prj-scroll`); if (sc && keep) sc.scrollTop = keep;
-    const m = $('hr-msgs'); if (m) m.scrollTop = m.scrollHeight;
+    restoreChat($('hr-msgs'), chatSt);
   }
 
   // For the AI bubble: which tab and which files back what is on screen.

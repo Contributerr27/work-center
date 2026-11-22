@@ -21,9 +21,12 @@
     scan: '<circle cx="10.5" cy="10.5" r="7"/><path d="m20.5 20.5-5-5"/><path d="M10.5 7.2l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z"/>',
     list: '<path d="M8.5 6.5h12M8.5 12h12M8.5 17.5h12"/><circle cx="4.5" cy="6.5" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="17.5" r="1"/>',
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    // The AI orb's center mark.
+    orb: '<path d="M12 3.5 13.9 10.1 20.5 12 13.9 13.9 12 20.5 10.1 13.9 3.5 12 10.1 10.1z"/>',
   };
   const V = {
     winter: {
+      orb: '<path d="M12 2.5v19M3.8 7.2l16.4 9.6M3.8 16.8l16.4-9.6"/><path d="M9.8 3.8 12 6l2.2-2.2M9.8 20.2 12 18l2.2 2.2M3.4 10.2l3 .8-.8 3M20.6 13.8l-3-.8.8-3M3.4 13.8l3-.8-.8-3M20.6 10.2l-3 .8.8 3"/>',
       home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5h4v5"/><path d="M15.5 6.8V3.5h2.5v5.3"/><path class="a" d="M2.2 11.2 12 3.2l9.8 8-1.7.9L12 5.6 3.9 12.1z"/>',
       day: '<path d="M12 2.5v19M3.8 7.2l16.4 9.6M3.8 16.8l16.4-9.6"/><path d="M9.8 3.8 12 6l2.2-2.2M9.8 20.2 12 18l2.2 2.2M3.4 10.2l3 .8-.8 3M20.6 13.8l-3-.8.8-3M3.4 13.8l3-.8-.8-3M20.6 10.2l-3 .8.8 3"/>',
       projects: '<rect x="3.5" y="9" width="17" height="11.5" rx="1.8"/><path d="M3.5 13h17M12 9v11.5"/><path d="M12 9c-1.4-2.9-5-3.8-5-1.4C7 9 10.2 9 12 9zM12 9c1.4-2.9 5-3.8 5-1.4C17 9 13.8 9 12 9z"/>',
@@ -34,6 +37,7 @@
       score: '<circle cx="12" cy="14" r="7"/><path d="M10 7.3V4.5h4v2.8M12 4.5V2.5"/><path d="M5.3 12.6c3.2 1.6 10.2 1.6 13.4 0M5.6 16.2c3.1 1.2 9.7 1.2 12.8 0"/><path class="a" d="M9 10.2a1.3 1.3 0 1 0 0-.01z"/>',
     },
     vice: {
+      orb: '<path d="M13.5 2.5 4.5 14h7l-1 7.5 9-11.5h-7z"/>',
       home: '<path d="M12 21c0-5 .6-9 2.2-12"/><path d="M14.2 9c-1-2.6-4.1-3.6-7.2-2.6 2.6 0 4.6 1 5.7 3.1M14.2 9c1.6-2.3 4.7-2.9 7.3-1.6-2.5-.2-4.6.6-5.7 2.3M14.2 9c.3-2.6-1.2-5-3.7-6.2 1.6 1.9 2.2 3.9 2 6.2M14.2 9c2.1-.8 4.7.2 5.7 2.6"/><path d="M6.5 21h11"/>',
       day: '<path d="M5 15.5a7 7 0 0 1 14 0"/><path d="M3 15.5h18M5.5 18.5h13M8.5 21.5h7"/><path d="M12 3.5v2.5M5.6 6.8 7.3 8.5M18.4 6.8 16.7 8.5"/>',
       ai: '<path d="M13.5 2.5 4.5 14h7l-1 7.5 9-11.5h-7z"/>',
@@ -42,7 +46,24 @@
     },
   };
   const theme = () => document.documentElement.dataset.theme || 'normal';
-  const markup = (name) => (V[theme()]?.[name] || B[name] || '');
+  const pack = () => document.documentElement.dataset.pack;
+  const markup = (name) => ((pack() && V[pack()]?.[name]) || V[theme()]?.[name] || B[name] || '');
+  // Icons from theme packs: only drawing shapes and their geometry/style attributes survive.
+  const OK_TAGS = new Set(['path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon', 'g']);
+  const OK_ATTRS = new Set(['d', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'width', 'height', 'points', 'transform', 'class', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'opacity', 'fill-opacity', 'stroke-opacity', 'fill-rule']);
+  function clean(src) {
+    const doc = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${src}</svg>`, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) return '';
+    const walk = (n) => {
+      for (const c of [...n.children]) {
+        if (!OK_TAGS.has(c.localName)) { c.remove(); continue; }
+        for (const a of [...c.attributes]) if (!OK_ATTRS.has(a.name) || /url\s*\(|javascript:/i.test(a.value)) c.removeAttribute(a.name);
+        walk(c);
+      }
+    };
+    walk(doc.documentElement);
+    return doc.documentElement.innerHTML;
+  }
   function icon(name, cls = '') {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', `ic ${cls}`); s.setAttribute('aria-hidden', 'true'); s.dataset.icon = name;
@@ -58,7 +79,15 @@
     for (const svg of root.querySelectorAll('svg.ic[data-icon]')) if (!svg.parentElement?.dataset?.i) svg.innerHTML = markup(svg.dataset.icon);
   }
   window.icon = icon;
-  window.ICONS = { has: (n) => !!B[n], paintAll };
+  // Theme packs register their own variants: ICONS.register('aurora', { orb: '<path …/>' }).
+  const register = (themeId, map) => {
+    if (['normal', 'vice', 'winter'].includes(themeId)) return; // built-in sets stay as they are
+    const safe = {};
+    for (const [k, v] of Object.entries(map || {})) { const c = clean(String(v)); if (c) safe[k] = c; }
+    V[themeId] = safe;
+    paintAll();
+  };
+  window.ICONS = { has: (n) => !!B[n], paintAll, register };
   window.addEventListener('themechange', () => paintAll());
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => paintAll()); else paintAll();
 })();

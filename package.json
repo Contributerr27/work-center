@@ -23,7 +23,9 @@
       "main.js",
       "prompts/**",
       "public/**",
-      "src/**"
+      "src/**",
+      "theme-packs/**",
+      "THEMES.md"
     ],
     "mac": {
       "target": "dir",

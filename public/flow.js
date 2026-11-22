@@ -95,6 +95,41 @@ function store(key, value) {
   return null;
 }
 document.documentElement.dataset.theme = store('theme') || 'vice';
+/* Theme packs (installed themes, see THEMES.md): data-theme carries the pack's base look (normal, vice,
+   winter) so all built-in styling applies; data-pack carries the pack id for its own stylesheet. The last
+   pack used is cached so it paints before the server answers. */
+let PACKS = [];
+const currentPack = () => { const id = document.documentElement.dataset.pack; return id ? PACKS.find((p) => p.id === id) || cachedPack(id) : null; };
+function cachedPack(id) { try { const c = JSON.parse(store('themePack') || 'null'); return c && c.id === id ? c : null; } catch (e) { return null; } }
+function applyPack(p) {
+  const root = document.documentElement;
+  if (!p) { delete root.dataset.pack; document.getElementById('pack-css')?.remove(); return; }
+  root.dataset.theme = p.base || 'normal';
+  root.dataset.pack = p.id;
+  let l = document.getElementById('pack-css');
+  if (!l) { l = document.createElement('link'); l.id = 'pack-css'; l.rel = 'stylesheet'; document.head.append(l); }
+  if (l.getAttribute('href') !== p.css) l.setAttribute('href', p.css);
+  window.ICONS?.register?.(p.id, p.icons || {});
+}
+// The id the person picked: a built-in theme or a pack.
+const themeId = () => document.documentElement.dataset.pack || document.documentElement.dataset.theme;
+window.themeId = themeId; window.currentPack = currentPack;
+(() => { const id = store('theme'); if (id && !['normal', 'vice', 'winter'].includes(id)) { const c = cachedPack(id); if (c) applyPack(c); else document.documentElement.dataset.theme = 'normal'; } })();
+async function loadPacks() {
+  try {
+    const r = await (await fetch('/api/themes')).json();
+    PACKS = r.packs || [];
+    loadPacks.info = r;
+    const id = store('theme');
+    if (id && !['normal', 'vice', 'winter'].includes(id)) {
+      const p = PACKS.find((x) => x.id === id);
+      if (p) { applyPack(p); store('themePack', JSON.stringify(p)); } else { applyPack(null); document.documentElement.dataset.theme = 'normal'; }
+      window.dispatchEvent(new CustomEvent('themechange', { detail: themeId() }));
+      try { render(); } catch (e) { /* not ready */ }
+    }
+  } catch (e) { /* server restarting */ }
+}
+loadPacks();
 // Side-panel windows (main.js) load this page with ?panel=ai|phone and show only that panel.
 const PANEL_MODE = new URLSearchParams(location.search).get('panel');
 if (PANEL_MODE) document.documentElement.classList.add('panel', `panel-${PANEL_MODE}`);
@@ -103,7 +138,7 @@ async function shellPanel(name, opts = {}) { if (PANEL_MODE && opts.open !== fal
 async function shellMain(what, ...args) { try { return !!(await post('/api/ui/main', { do: what, args })).handled; } catch (e) { return false; } }
 window.shellPanel = shellPanel; window.shellMain = shellMain;
 // Another window changed the theme: follow it.
-window.addEventListener('storage', (e) => { if (e.key === 'theme' && e.newValue && e.newValue !== theme()) { document.documentElement.dataset.theme = e.newValue; window.dispatchEvent(new CustomEvent('themechange', { detail: e.newValue })); try { render(); } catch (err) { /* not ready */ } } });
+window.addEventListener('storage', (e) => { if (e.key === 'theme' && e.newValue && e.newValue !== themeId()) { applyThemeId(e.newValue); window.dispatchEvent(new CustomEvent('themechange', { detail: e.newValue })); try { render(); } catch (err) { /* not ready */ } } });
 const theme = () => document.documentElement.dataset.theme;
 /* Themes: add one with an entry here plus a :root[data-theme="<id>"] block of tokens in app.css
    (and optional extras in public/features/themes.css). `fx` themes get their own effects there. */
@@ -113,6 +148,13 @@ const THEMES = [
   { id: 'winter', name: 'Winter', sub: 'Alpine morning, frosted glass, snowfall', sw: ['#e8f0f9', '#2a5d96', '#b3122e'] },
 ];
 if (!THEMES.some((t) => t.id === theme())) document.documentElement.dataset.theme = 'vice';
+function applyThemeId(id) {
+  if (THEMES.some((t) => t.id === id)) { applyPack(null); document.documentElement.dataset.theme = id; return true; }
+  const p = PACKS.find((x) => x.id === id) || cachedPack(id);
+  if (!p) return false;
+  applyPack(p); store('themePack', JSON.stringify(p));
+  return true;
+}
 /* Wording follows the theme: plain work words in Normal, missions and Respect in Vice, an alpine
    expedition in Winter. term(key) for labels, stepName(step) for a step's title. */
 const TERMS = {
@@ -121,15 +163,16 @@ const TERMS = {
   winter: { day: 'Expedition', score: 'Altitude', board: 'Summit log', step: 'Camp', stepsDone: 'Camps reached', passed: 'Camp reached', wrap: 'Back to base', wrapTitle: 'Back at base camp', messages: 'Radio', focus: 'Deep trail', perDay: 'Altitude per day', bugs: 'Avalanche watch', stories: 'Peaks climbed', debrief: 'Fireside debrief', weekly: 'Weekly expedition log' },
 };
 const WINTER_STEPS = { github: 'Clear the Trail', health: 'Weather Check', jira: 'Read the Map', slack: 'Signals from Base', work: 'The Ascent', meet: 'Fireside Talks' };
-const term = (k) => (TERMS[theme()] || TERMS.normal)[k] ?? TERMS.normal[k];
-const stepName = (s) => (theme() === 'vice' ? s.mission || s.name : theme() === 'winter' ? s.winter || WINTER_STEPS[s.id] || s.mission || s.name : s.name);
+// A pack's own words win; otherwise its base theme's.
+const term = (k) => { const P = currentPack(); return P?.terms?.[k] ?? (TERMS[theme()] || TERMS.normal)[k] ?? TERMS.normal[k]; };
+const stepName = (s) => currentPack()?.steps?.[s.id] || (theme() === 'vice' ? s.mission || s.name : theme() === 'winter' ? s.winter || WINTER_STEPS[s.id] || s.mission || s.name : s.name);
 window.term = term; window.stepName = stepName;
 // The logo in the menu and the tab icon follow the theme (public/brand/<theme>.png).
-function brandIcon() { const src = `brand/${theme()}.png`; const l = document.getElementById('sd-logo'); if (l && !l.src.endsWith(src)) l.src = src; const f = document.querySelector('link[rel="icon"]'); if (f) { f.type = 'image/png'; f.href = src; } }
+function brandIcon() { const src = currentPack()?.logo || `brand/${theme()}.png`; const l = document.getElementById('sd-logo'); if (l && !l.src.endsWith(src)) l.src = src; const f = document.querySelector('link[rel="icon"]'); if (f) { f.type = 'image/png'; f.href = src; } }
 window.addEventListener('themechange', brandIcon);
 document.addEventListener('DOMContentLoaded', brandIcon);
 function setTheme(id) {
-  document.documentElement.dataset.theme = id;
+  if (!applyThemeId(id)) return toast('That theme is not installed');
   store('theme', id);
   window.dispatchEvent(new CustomEvent('themechange', { detail: id }));
   render();
@@ -142,14 +185,42 @@ function toggleThemeMenu() {
   m.style.left = `${Math.round(r.right + 8)}px`;
   m.style.right = 'auto';
   m.style.top = `${Math.round(r.top)}px`;
-  m.replaceChildren(h('div', { class: 'tm-title' }, 'Theme'), ...THEMES.map((t) => h('button', {
-    class: `tm-item ${t.id === theme() ? 'on' : ''}`, role: 'menuitemradio', 'aria-checked': t.id === theme() ? 'true' : 'false',
+  const cur = themeId();
+  const item = (t) => h('button', {
+    class: `tm-item ${t.id === cur ? 'on' : ''}`, role: 'menuitemradio', 'aria-checked': t.id === cur ? 'true' : 'false',
     onclick: () => { m.hidden = true; setTheme(t.id); },
-  }, h('span', { class: 'tm-sw' }, t.sw.map((c) => h('i', { style: `background:${c}` }))), h('span', { class: 'tm-t' }, h('b', {}, t.name), h('small', {}, t.sub)), t.id === theme() ? h('span', { class: 'tm-ck' }, '✓') : null)));
+  }, h('span', { class: 'tm-sw' }, (t.sw || t.swatches || []).map((c) => h('i', { style: `background:${c}` }))),
+  h('span', { class: 'tm-t' }, h('b', {}, t.name), h('small', {}, t.sub || [t.description, t.author && `by ${t.author}`].filter(Boolean).join(' · '))),
+  t.id === cur ? h('span', { class: 'tm-ck' }, '✓') : null,
+  t.source === 'installed' ? h('span', { class: 'tm-rm', role: 'button', tabindex: '0', title: `Remove ${t.name}`, 'aria-label': `Remove ${t.name}`,
+    onclick: async (e) => { e.stopPropagation(); if (!confirm(`Remove the ${t.name} theme?`)) return; try { await post('/api/themes/remove', { id: t.id }); if (cur === t.id) setTheme('normal'); await loadPacks(); toggleThemeMenu(); toggleThemeMenu(); toast(`${t.name} removed`); } catch (err) { toast(err.message); } } }, '×') : null);
+  const broken = loadPacks.info?.broken || [];
+  m.replaceChildren(h('div', { class: 'tm-title' }, 'Theme'), ...THEMES.map(item),
+    PACKS.length ? h('div', { class: 'tm-title' }, 'Installed themes') : null, ...PACKS.map(item),
+    ...broken.map((b) => h('div', { class: 'tm-broken', title: b.error }, `⚠ ${b.folder}: ${b.error}`)),
+    h('div', { class: 'tm-foot' },
+      h('button', { class: 'btn sm', onclick: installTheme }, '＋ Install theme…'),
+      h('button', { class: 'btn sm ghost', title: 'Open the folder installed themes live in', onclick: () => post('/api/themes/folder').catch((e) => toast(e.message)) }, 'Themes folder')));
   m.hidden = false;
   // Opens beside the menu item; keep it on screen.
   m.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - m.offsetHeight - 8))}px`;
   m.querySelector('.tm-item.on, .tm-item')?.focus();
+}
+// Install a theme pack: the app shows a file picker; in a browser, type the folder or .zip path.
+async function installTheme() {
+  const m = $('theme-menu'); if (m) m.hidden = true;
+  try {
+    let r = await post('/api/themes/install', {});
+    if (r.needPath) {
+      const p = prompt('Path to a theme folder (with theme.json) or a .zip:');
+      if (!p) return;
+      r = await post('/api/themes/install', { path: p });
+    }
+    if (!r.installed) return;
+    await loadPacks();
+    setTheme(r.installed.id);
+    toast(`Installed ${r.installed.name}`);
+  } catch (e) { toast(`Could not install: ${e.message}`); }
 }
 document.addEventListener('click', (e) => { const m = $('theme-menu'); if (m && !m.hidden && !m.contains(e.target) && !e.target.closest?.('#btn-theme')) m.hidden = true; });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('theme-menu') && !$('theme-menu').hidden) $('theme-menu').hidden = true; });
@@ -251,7 +322,7 @@ function renderFlow() {
   $('heat').replaceChildren(...[1, 2, 3, 4, 5].map((i) => h('i', { class: i <= wl.stars ? 'on' : '' }, '★')), h('small', {}, wl.label));
   $('heat').title = wl.why;
   $('btn-all').textContent = showAll ? 'Focus mode' : 'Show all';
-  HQ.setLabel($('btn-theme'), `Theme · ${(THEMES.find((t) => t.id === theme()) || THEMES[0]).name}`);
+  HQ.setLabel($('btn-theme'), `Theme · ${(currentPack() || THEMES.find((t) => t.id === theme()) || THEMES[0]).name}`);
   // Sidebar names follow the theme too.
   HQ.setLabel($('nav-day'), term('day')); HQ.setLabel($('btn-score'), term('board'));
   HQ.setLabel($('btn-phone'), term('messages')); if ($('btn-wrap')) HQ.setLabel($('btn-wrap'), term('wrap'));
@@ -318,7 +389,7 @@ function renderChip(step) {
 
 const bubble = (c) => [
   h('div', { class: 'msg me' }, c.ref && h('span', { class: 'chip sm' }, `↳ ${c.ref.label}`), h('span', {}, c.text)),
-  h('div', { class: `msg ai ${c.error ? 'bad' : ''}` }, c.running ? liveFeed(c) : [c.error || c.result, liveFeed(c)]),
+  h('div', { class: `msg ai ${c.error ? 'bad' : ''}` }, c.running ? liveFeed(c) : [c.error || window.md(c.result), liveFeed(c)]),
 ];
 function renderLog(step) {
   renderChip(step);
@@ -335,7 +406,7 @@ function renderLog(step) {
       h('span', { class: `pill ${x.running ? 'blue pulse' : x.error ? 'red' : 'green'}` }, x.running ? `✦ ${x.steps ? `Step ${x.steps}` : 'Working…'}` : x.error ? '✕ Failed' : '✓ Done'),
       h('span', { class: 't' }, x.text), h('span', { class: 'muted small' }, time(x.startedAt)),
       !x.running && h('button', { class: 'btn sm ghost', onclick: (e) => { e.preventDefault(); c.thread = x.thread; render(); inputs[step.id].focus(); } }, 'Follow up')),
-    x.running ? liveFeed(x) : [h('div', { class: 'draft' }, x.error || x.result), liveFeed(x)])));
+    x.running ? liveFeed(x) : [h('div', { class: 'draft' }, x.error || window.md(x.result)), liveFeed(x)])));
 }
 
 const seenRunning = new Set();
@@ -394,7 +465,7 @@ setInterval(async () => {
   try {
     if (PANEL_MODE) { mainCtx = (await (await fetch('/api/ui/state')).json()).context; return; }
     if (!D) return;
-    const body = { context: buildViewContext(), theme: theme() };
+    const body = { context: buildViewContext(), theme: themeId() };
     const sig = JSON.stringify(body);
     if (sig !== lastPosted) { lastPosted = sig; await post('/api/ui/state', body); }
   } catch (e) { /* server restarting */ }

@@ -120,3 +120,7 @@ Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when 
   a period (copy each answer), and AI feedback with a 0–100 score across seven areas from your work and your
   manager conversations, with suggested improvements and a coach chat. Settings `hr`: `manager`, `reviewQuestions`,
   `ratingScale`, `focus`. All of it stays in `data/hr` on this computer.
+
+## Themes
+
+Pick a theme from **Theme** in the sidebar. Anyone can make and share new ones (a folder with `theme.json`, optional CSS and pictures, no code); see [THEMES.md](THEMES.md). The example `theme-packs/aurora` ships with the app.

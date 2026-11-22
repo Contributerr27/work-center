@@ -131,7 +131,7 @@
           h('span', { class: 'ic' }, s.kind === 'text' ? '›' : s.failed ? '✕' : '✓'),
           h('span', { class: 't' }, s.kind === 'text' ? s.text.split('\n')[0].slice(0, 200) : s.label, s.error ? h('small', { class: 'blocked' }, ` ${s.error.slice(0, 160)}`) : null))))) : null,
       !r.running && (r.result || r.error || r.final?.text) ? h('div', { class: `aic-msg ai ${r.error ? 'bad' : ''}` },
-        h('div', { class: 'aic-bub' }, r.error || r.result || r.final?.text),
+        h('div', { class: 'aic-bub' }, r.error || window.md(r.result || r.final?.text)),
         h('small', {}, [r.engine, r.finishedAt ? `done ${hhmm(r.finishedAt)}` : null, dur(r.startedAt, r.finishedAt), r.final?.cost ? `$${r.final.cost.toFixed(2)}` : null].filter(Boolean).join(' · '))) : null);
   }
 
@@ -182,7 +182,13 @@
     let fab = $('aib-fab');
     if (!fab) {
       fab = h('button', { id: 'aib-fab', title: 'AI chat (⌘J)', 'aria-label': 'Open AI chat', onclick: async () => { if (await window.shellPanel?.('ai', { toggle: true })) return; B.open ? closeBubble() : openBubble(); } },
-        h('span', { class: 'orb', 'aria-hidden': 'true' }, h('i', { class: 'orb-ring' }), h('i', { class: 'orb-core' }), h('i', { class: 'orb-spark' }), h('span', { class: 'orb-ic' }, '✦')));
+        h('span', { class: 'orb', 'aria-hidden': 'true' },
+          // Theme scenery inside the orb (CSS shows the one for the current theme): Vice's striped sun and
+          // scanlines, Winter's falling snow.
+          h('i', { class: 'orb-sun' }), h('i', { class: 'orb-scan' }),
+          h('span', { class: 'orb-snow' }, [1, 2, 3, 4, 5, 6, 7].map((n) => h('i', { class: `f f${n}` }))),
+          h('i', { class: 'orb-ring' }), h('i', { class: 'orb-core' }), h('i', { class: 'orb-spark' }),
+          h('span', { class: 'orb-ic' }, window.icon ? window.icon('orb') : '✦')));
       document.body.append(fab, h('div', { id: 'aib-win', hidden: true, role: 'dialog', 'aria-label': 'AI chat' }));
     }
     return { fab, win: $('aib-win') };
@@ -255,7 +261,7 @@
       h('div', { class: 'aib-sugg' }, ((window.viewContext?.() || {}).suggest || ['What needs me today?', 'Summarize my open PRs', 'Draft my standup']).map((s) => h('button', { class: 'chip', onclick: () => { B.draft = s; send(); } }, s))))];
     return mine.flatMap((c) => [
       h('div', { class: 'aic-msg me' }, h('div', { class: 'aic-bub' }, c.text), c.attachments?.length ? h('div', { class: 'aic-att' }, c.attachments.map((a) => h('span', { class: 'chip sm' }, `📎 ${a}`))) : null),
-      c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || c.result || 'Done.'), liveFeed(c)),
+      c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || window.md(c.result || 'Done.')), liveFeed(c)),
     ]);
   }
   function paintMessages() {

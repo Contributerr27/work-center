@@ -1,6 +1,6 @@
 // Electron shell: starts the local server and shows it in a native window (macOS, Windows, Linux),
 // plus the menu-bar icon, quick-capture hotkey, launch at login and morning scan (src/tray.js).
-const { app, BrowserWindow, shell, nativeTheme, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, shell, nativeTheme, screen, nativeImage, dialog } = require('electron');
 const path = require('node:path');
 const { start, onUi } = require('./src/server');
 const osx = require('./src/tray');
@@ -116,12 +116,26 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
     return true;
   }
   // Dock icon follows the theme (build/icons/<theme>.png).
-  function themeIcon(theme) {
-    const f = path.join(__dirname, 'build', 'icons', `${theme}.png`);
-    if (!require('node:fs').existsSync(f)) return;
+  // A theme pack can bring its own icon.png ({ id, icon } from the server).
+  function themeIcon(t) {
+    const id = typeof t === 'string' ? t : t?.id;
+    const fsx = require('node:fs');
+    const f = [t?.icon, path.join(__dirname, 'build', 'icons', `${id}.png`), path.join(__dirname, 'build', 'icons', 'normal.png')].find((x) => x && fsx.existsSync(x));
+    if (!f) return;
     const img = nativeImage.createFromPath(f);
     if (app.dock && !img.isEmpty()) app.dock.setIcon(img);
     if (win && !win.isDestroyed() && process.platform !== 'darwin') win.setIcon(img);
+  }
+
+  // Install a theme: pick a theme folder or a .zip.
+  async function pickTheme() {
+    const r = await dialog.showOpenDialog(win && !win.isDestroyed() ? win : undefined, {
+      title: 'Install a Work Center theme', buttonLabel: 'Install', message: 'Pick a theme folder (with theme.json) or a .zip',
+      properties: ['openFile', 'openDirectory'], filters: [{ name: 'Theme', extensions: ['zip', 'json'] }],
+    });
+    if (r.canceled || !r.filePaths[0]) return null;
+    const f = r.filePaths[0];
+    return f.endsWith('theme.json') ? path.dirname(f) : f;
   }
 
   function showWindow() {
@@ -137,7 +151,8 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     if (app.dock) app.dock.setIcon(ICON); // macOS dock icon when run with `npm start`
     url = await start();
-    onUi((kind, data) => (kind === 'panel' ? panel(data.name, data) : kind === 'main' ? inMain(data) : kind === 'theme' ? (themeIcon(data), true) : false));
+    onUi((kind, data) => (kind === 'panel' ? panel(data.name, data) : kind === 'main' ? inMain(data) : kind === 'theme' ? (themeIcon(data), true)
+      : kind === 'pickTheme' ? pickTheme() : false));
     const hidden = osx.launchedAtLogin(); // started at login: stay in the menu bar
     if (hidden && app.dock) app.dock.hide();
     createWindow({ show: !hidden });

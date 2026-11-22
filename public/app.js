@@ -418,13 +418,46 @@ function scrollKey(el) {
   const same = sec ? [...sec.querySelectorAll(SCROLLERS)].filter((x) => x.className === el.className) : [];
   return `${sec?.id || 'page'}|${el.className}|${same.indexOf(el)}`;
 }
+// A chat box follows new messages only while you're at its bottom; scrolled up, it stays put.
+function chatPos(el) { return el ? { top: el.scrollTop, bottom: el.scrollTop + el.clientHeight >= el.scrollHeight - 6 } : null; }
+function restoreChat(el, st) { if (el) el.scrollTop = !st || st.bottom ? el.scrollHeight : st.top; }
+
+// Keep what you are reading still: remember the element at the top of the screen (as a path of child
+// positions from the nearest element with an id) and where it sat, then scroll by however far it moved.
+// So an AI run growing a section above you no longer pushes the section you're reading.
+function viewAnchor() {
+  const main = document.querySelector('main');
+  if (!main || window.scrollY < 1) return null; // at the very top, stay at the top
+  const r = main.getBoundingClientRect();
+  let el = document.elementFromPoint(r.left + Math.min(r.width / 2, 260), Math.max(r.top, 0) + 70);
+  if (!el || !main.contains(el)) return null;
+  const chain = [];
+  while (el && el !== main && !el.id) { chain.unshift({ el, top: el.getBoundingClientRect().top }); el = el.parentElement; }
+  if (!el || el === main) return null;
+  const root = el.id, rootTop = el.getBoundingClientRect().top;
+  const path = chain.map(({ el: c, top }) => ({ i: [...c.parentElement.children].indexOf(c), top }));
+  return { root, rootTop, path };
+}
+function keepAnchor(a) {
+  if (!a) return;
+  let node = document.getElementById(a.root);
+  if (!node) return;
+  let before = a.rootTop, after = node.getBoundingClientRect().top;
+  for (const p of a.path) {
+    const next = node.children[p.i];
+    if (!next) break;
+    node = next; before = p.top; after = next.getBoundingClientRect().top;
+  }
+  const d = after - before;
+  if (Math.abs(d) > 1) window.scrollTo({ top: window.scrollY + d, behavior: 'instant' }); // instant: the page's smooth scrolling would show the jump
+}
 function render() {
   const saved = new Map();
   for (const el of document.querySelectorAll(SCROLLERS)) {
     if (el.scrollHeight <= el.clientHeight) continue;
     saved.set(scrollKey(el), { top: el.scrollTop, bottom: el.scrollTop + el.clientHeight >= el.scrollHeight - 6 });
   }
-  const y = window.scrollY;
+  const anchor = viewAnchor();
   renderPage();
   for (const el of document.querySelectorAll(SCROLLERS)) {
     const st = saved.get(scrollKey(el));
@@ -432,7 +465,7 @@ function render() {
     if (st) el.scrollTop = isChat && st.bottom ? el.scrollHeight : st.top;
     else if (isChat) el.scrollTop = el.scrollHeight; // a chat you just opened starts at the newest message
   }
-  if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+  keepAnchor(anchor);
 }
 function renderPage() {
   const hr = new Date().getHours();
@@ -442,9 +475,14 @@ function renderPage() {
   $('stamp').textContent = `Live ${time(D.live.fetchedAt)}${stamps.length ? ` · AI ${new Date(stamps[0]).toLocaleDateString([], { weekday: 'short' })} ${time(stamps[0])}` : ''}`;
   const b = $('banner');
   const stale = stamps.length && new Date(stamps[0]).toDateString() !== new Date().toDateString();
-  b.hidden = !(D.aiRun?.error || D.aiRun?.running || stale);
-  b.textContent = D.aiRun?.running ? 'AI scan is running. This takes a few minutes; the page updates when it finishes.'
-    : D.aiRun?.error ? `AI scan failed: ${D.aiRun.error}` : 'The AI scan (Slack, meetings, suggestions) is from an earlier day. Press ✦ AI scan to refresh it.';
+  const msg = D.aiRun?.running ? 'AI scan is running. This takes a few minutes; the page updates when it finishes.'
+    : D.aiRun?.error ? `AI scan failed: ${D.aiRun.error}` : 'The AI scan (Slack, meetings, suggestions) is from an earlier day. It runs on its own each morning; press ✦ AI scan to refresh it now.';
+  // A closed banner stays closed until its message changes (or tomorrow).
+  const key = `${new Date().toDateString()}|${msg}`;
+  let closed = null; try { closed = localStorage.getItem('bannerClosed'); } catch (e) { /* storage off */ }
+  b.hidden = !(D.aiRun?.error || D.aiRun?.running || stale) || closed === key;
+  b.replaceChildren(h('span', {}, msg), h('button', { class: 'banner-x', title: 'Close', 'aria-label': 'Close this message',
+    onclick: () => { try { localStorage.setItem('bannerClosed', key); } catch (e) { /* storage off */ } b.hidden = true; } }, '×'));
   $('btn-ai').disabled = !!D.aiRun?.running;
   scheduleFastPoll(); renderFlow(); renderHQ(); checkNewPings(!render.once); render.once = true; renderGithub(); renderJira(); renderSlack(); renderWork(); renderMeetings();
   for (const s of FLOW) if (s.render) { try { s.render($(s.id)); } catch (e) { $(s.id).replaceChildren(h('div', { class: 'panel err' }, `${s.name}: ${e.message}`)); } }

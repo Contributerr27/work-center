@@ -1,0 +1,26 @@
+{
+  "id": "aurora",
+  "name": "Aurora",
+  "description": "Northern lights over a night sky",
+  "author": "Work Center",
+  "version": "1.0.0",
+  "base": "normal",
+  "swatches": ["#0b1526", "#3ee6b0", "#8a7dff"],
+  "tokens": {
+    "--bg": "#0b1526", "--panel": "rgba(16, 28, 48, .78)", "--line": "rgba(140, 200, 255, .16)",
+    "--text": "#e8f3ff", "--muted": "#8fa6c2", "--soft": "rgba(30, 48, 78, .7)",
+    "--green": "#3ee6b0", "--green-bg": "rgba(62, 230, 176, .14)", "--amber": "#f3c969", "--amber-bg": "rgba(243, 201, 105, .14)",
+    "--red": "#ff7a8a", "--red-bg": "rgba(255, 122, 138, .14)", "--blue": "#6cc8ff", "--blue-bg": "rgba(108, 200, 255, .14)",
+    "--violet": "#a99bff", "--violet-bg": "rgba(169, 155, 255, .16)", "--grey-bg": "rgba(40, 60, 90, .6)",
+    "--shadow": "0 10px 30px rgba(0, 0, 0, .35)",
+    "--glass": "rgba(16, 28, 48, .62)", "--glass-line": "rgba(140, 200, 255, .18)", "--glass-blur": "blur(16px) saturate(1.3)"
+  },
+  "orb": { "colors": ["#3ee6b0", "#6cc8ff", "#e8fff6", "#8a7dff"] },
+  "effect": { "kind": "stars", "color": "#dff3ff", "density": 0.8 },
+  "terms": { "day": "Tonight", "score": "Glow", "board": "Sky log", "step": "Light", "stepsDone": "Lights seen", "passed": "Light seen", "wrap": "Dawn", "wrapTitle": "Before dawn", "messages": "Signals", "perDay": "Glow per night" },
+  "steps": { "github": "First Glow", "health": "Clear Skies", "jira": "Star Chart", "slack": "Signals", "work": "The Display", "meet": "Campfire" },
+  "icons": {
+    "orb": "<path d=\"M3 15c3-6 6-8 9-8s6 2 9 8\"/><path d=\"M5 18c2.5-4 4.5-5.5 7-5.5s4.5 1.5 7 5.5\"/><circle cx=\"12\" cy=\"4\" r=\"1\"/>"
+  },
+  "css": "theme.css"
+}
