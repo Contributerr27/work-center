@@ -107,3 +107,7 @@ for the plan and the open issues for pieces you can pick up. New sections plug i
 - [docs/FEATURES.md](docs/FEATURES.md): writing a feature or a new section
 - [THEMES.md](THEMES.md): making a theme
 - `npm run demo` and `npm run screenshots`: try changes on made-up data and refresh these screenshots
+
+## License
+
+[MIT](LICENSE)

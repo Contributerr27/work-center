@@ -2,6 +2,7 @@
   "name": "work-center",
   "version": "0.1.0",
   "description": "A visual morning overview of GitHub, Jira, Slack, meetings and suggested work",
+  "license": "MIT",
   "main": "main.js",
   "private": true,
   "scripts": {
