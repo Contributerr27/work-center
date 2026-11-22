@@ -1,0 +1,65 @@
+/* Home view (public/features/home.js). Reuses .aic-head from aicenter.css; tokens from app.css. */
+#home-ov { z-index: 25; padding: 0; place-items: stretch; background: var(--bg); backdrop-filter: none; }
+.hm-box { display: flex; flex-direction: column; height: 100vh; }
+.hm-scroll { flex: 1; overflow: auto; }
+.hm-wrap { max-width: 1180px; margin: 0 auto; padding: 22px 24px 40px; display: flex; flex-direction: column; gap: 16px; }
+.hm-hero { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+.hm-hello { flex: 1; min-width: 260px; }
+.hm-hello h1 { margin: 0; font-size: clamp(26px, 3.4vw, 38px); letter-spacing: -.02em; line-height: 1.1; }
+.hm-hello p { margin: 6px 0 0; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.hm-streak, .hm-rank { font-weight: 700; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 2px 10px; font-size: 13px; }
+.hm-today { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; }
+.hm-go { margin-top: 4px; font-size: 14px; padding: 8px 16px; }
+.hm-quick { display: flex; gap: 8px; flex-wrap: wrap; }
+.hm-q { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 12px; padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+.hm-q:hover { border-color: var(--blue); }
+.hm-q:focus-visible, .hm-tile:focus-visible, .hm-hc:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.hm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.hm-span2 { grid-column: span 2; }
+.hm-span3 { grid-column: 1 / -1; }
+@media (max-width: 980px) { .hm-grid { grid-template-columns: 1fr 1fr; } .hm-span2, .hm-span3 { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .hm-grid { grid-template-columns: 1fr; } .hm-wrap { padding: 16px; } }
+.hm-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; box-shadow: var(--shadow); }
+.hm-ch { display: flex; align-items: center; gap: 8px; }
+.hm-ch h3 { margin: 0; font-size: 14px; font-weight: 700; flex: 1; }
+.hm-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.hm-tile { border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 12px; padding: 10px 12px; text-align: left; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.hm-tile b { font-size: 24px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.hm-tile small { color: var(--muted); font-size: 12px; }
+.hm-tile:hover { border-color: var(--blue); }
+.hm-next { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.hm-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; }
+.hm-stat { display: flex; flex-direction: column; }
+.hm-stat b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.hm-stat small { color: var(--muted); font-size: 12px; }
+.hm-spark { display: flex; align-items: flex-end; gap: 2px; height: 60px; margin: 10px 0 4px; }
+.hm-spark span { flex: 1; background: var(--blue); border-radius: 3px 3px 0 0; opacity: .8; min-width: 2px; }
+.hm-rgs { display: flex; background: var(--soft); border-radius: 8px; padding: 2px; }
+.hm-rg { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 650; padding: 3px 9px; border-radius: 6px; cursor: pointer; }
+.hm-rg.on { background: var(--panel); color: var(--text); }
+.hm-heat { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.hm-hw { display: flex; flex-direction: column; gap: 4px; flex: none; }
+.hm-hc { display: block; width: 16px; height: 16px; border: 0; border-radius: 4px; padding: 0; cursor: pointer; background: var(--soft); }
+.hm-hc.l1 { background: color-mix(in srgb, var(--green) 30%, var(--soft)); }
+.hm-hc.l2 { background: color-mix(in srgb, var(--green) 55%, var(--soft)); }
+.hm-hc.l3 { background: color-mix(in srgb, var(--green) 78%, var(--soft)); }
+.hm-hc.l4 { background: var(--green); }
+.hm-hc.l-1 { visibility: hidden; }
+.hm-legend { display: flex; align-items: center; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+.hm-legend i { width: 12px; height: 12px; cursor: default; }
+.hm-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hm-act { display: flex; flex-direction: column; background: var(--soft); border-radius: 10px; padding: 8px 10px; }
+.hm-act b { font-size: 20px; }
+.hm-act span { font-size: 12px; color: var(--muted); }
+.hm-wins, .hm-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.hm-win { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; color: var(--text); font: inherit; padding: 4px 2px; cursor: pointer; text-align: left; border-radius: 8px; }
+.hm-win:hover { background: var(--soft); }
+.hm-wt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.hm-tasks li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.hm-tt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-bar { width: 70px; height: 6px; border-radius: 4px; background: var(--soft); overflow: hidden; flex: none; }
+.hm-bar i { display: block; height: 100%; background: var(--green); }
+.hm-health { display: flex; flex-wrap: wrap; gap: 6px; }
+.hm-dot { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; background: var(--soft); border-radius: 20px; padding: 3px 10px 3px 8px; }
+.hm-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+.hm-dot.ok::before { background: var(--green); }

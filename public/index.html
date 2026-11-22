@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Center</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="alternate icon" type="image/png" href="icon.png">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="stats.css">
+<link rel="stylesheet" href="term.css">
+</head>
+<body>
+<header id="top">
+  <div class="drag"></div>
+  <div class="hello">
+    <h1 id="greet">Good morning</h1>
+    <p id="date"></p>
+  </div>
+  <div class="top-actions">
+    <button id="respect" class="respect" hidden title="Open the scoreboard"></button>
+    <span id="heat" class="heat"></span>
+    <span id="stamp" class="muted"></span>
+    <button id="btn-phone" class="btn ghost phone-btn" title="Slack messages (checked every few minutes)">📱<span id="phone-badge" class="pbadge" hidden></span></button>
+    <button id="btn-score" class="btn ghost" title="Scoreboard: today, week, month">🏆 Score</button>
+    <button id="btn-term" class="btn ghost" title="AI Center: every AI chat and run by day (terminal: Cmd+Shift+T)">✦ AI Center</button>
+    <button id="btn-settings" class="btn ghost" title="Settings: your AI tools, connections, rules and profile">⚙</button>
+    <button id="btn-theme" class="btn ghost" title="Pick a theme" aria-haspopup="menu"></button>
+    <button id="btn-all" class="btn ghost" title="Show every section, or only the current step"></button>
+    <button id="btn-ai" class="btn ghost" title="Re-run the AI scan of Slack, meetings and suggestions">✦ AI scan</button>
+    <button id="btn-refresh" class="btn" title="Reload GitHub and Jira">↻ Refresh</button>
+  </div>
+</header>
+
+<nav id="tiles"></nav>
+<div id="banner" hidden></div>
+
+<main id="main">
+  <section id="s-github"><div class="sec-head"></div><div class="cmd"></div><div class="cmd-log"></div><div class="sec-body"><div class="grid g3" id="github"></div></div></section>
+  <section id="s-jira"><div class="sec-head"></div><div class="cmd"></div><div class="cmd-log"></div><div class="sec-body"><div class="grid g2" id="jira"></div></div></section>
+  <section id="s-slack"><div class="sec-head"></div><div class="cmd"></div><div class="cmd-log"></div><div class="sec-body"><div class="cards" id="slack"></div></div></section>
+  <section id="s-work"><div class="sec-head"></div><div class="cmd"></div><div class="cmd-log"></div><div class="sec-body"><div class="grid g2" id="work"></div></div></section>
+  <section id="s-meet"><div class="sec-head"></div><div class="cmd"></div><div class="cmd-log"></div><div class="sec-body"><div class="grid g2" id="meet"></div></div></section>
+</main>
+
+<div id="reader" hidden><div class="reader-box"><button class="btn ghost" id="reader-close">Close</button><div id="reader-body"></div></div></div>
+<div id="toast" hidden></div>
+<div id="passed" hidden></div>
+<div id="phone" hidden></div>
+<script src="flow.js"></script>
+<script src="hq.js"></script>
+<script src="app.js"></script>
+<script src="stats.js"></script>
+<script src="term.js"></script>
+<script src="/features.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Center · Quick ask</title>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem('theme') || 'vice'; } catch (e) { document.documentElement.dataset.theme = 'vice'; }</script>
+<link rel="stylesheet" href="capture.css">
+</head>
+<body>
+<form id="box" class="box" autocomplete="off">
+  <div class="row">
+    <span class="spark" aria-hidden="true">✦</span>
+    <input id="text" type="text" placeholder="Ask the AI or jot a task…" aria-label="Quick ask" spellcheck="false" autofocus>
+  </div>
+  <div class="row foot">
+    <select id="section" aria-label="Mission"></select>
+    <span class="hint" id="hint"><kbd>↵</kbd> ask AI · <kbd id="mod">⌘</kbd><kbd>↵</kbd> task · <kbd>esc</kbd> close</span>
+    <span class="spacer"></span>
+    <button type="button" id="task" class="btn">＋ Task</button>
+    <button type="submit" id="ask" class="btn go">Ask AI</button>
+  </div>
+  <div id="msg" class="msg" hidden></div>
+</form>
+<script src="capture.js"></script>
+</body>
+</html>

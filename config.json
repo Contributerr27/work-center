@@ -1,0 +1,29 @@
+{
+  "port": 4747,
+  "github": {
+    "orgs": [],
+    "mergeMethod": "squash"
+  },
+  "jira": {
+    "mentions": "comment ~ currentUser() AND updated >= -7d ORDER BY updated DESC",
+    "sprint": "assignee = currentUser() AND sprint in openSprints() AND statusCategory != Done ORDER BY priority DESC, updated DESC",
+    "bugs": "reporter = currentUser() AND issuetype = Bug AND statusCategory != Done ORDER BY priority DESC, created ASC",
+    "nudgeAfterDays": {
+      "Highest": 3,
+      "High": 7,
+      "Medium": 14,
+      "Low": 30,
+      "Lowest": 45
+    }
+  },
+  "owner": {},
+  "ai": {},
+  "slackScan": {
+    "enabled": true,
+    "everyMinutes": 5,
+    "fromHour": 8,
+    "toHour": 19,
+    "weekdaysOnly": true,
+    "model": "haiku"
+  }
+}

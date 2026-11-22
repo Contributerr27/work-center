@@ -1,0 +1,48 @@
+/* Focus missions: HUD, picker, dimmed missions. */
+#focus-hud { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px 6px 6px; border-radius: 40px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow), 0 8px 26px rgba(0, 0, 0, .18); max-width: min(440px, calc(100vw - 32px)); }
+#focus-hud[hidden] { display: none; }
+.fx-dial { position: relative; width: 44px; height: 44px; flex: none; }
+.fx-dial b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11.5px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.fx-ring { width: 44px; height: 44px; }
+.fx-ring .bg { stroke: var(--grey-bg); }
+.fx-ring .fg { stroke: var(--green); transition: stroke-dasharray 1s linear; }
+.fx-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.fx-txt small { color: var(--muted); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; }
+.fx-txt span { font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.fx-txt em { color: var(--amber); font-size: 11px; font-style: normal; }
+
+/* While focused: everything but the current mission (or Mission 4 when focusing on a task) steps back. */
+body.focus-on main > section, body.focus-on #tiles { transition: opacity .3s, filter .3s; }
+body.focus-on main > section:not(.cur), body.focus-on #tiles { opacity: .32; filter: saturate(.4); }
+body.focus-on.focus-task main > section:not(#s-work) { opacity: .32; filter: saturate(.4); }
+body.focus-on.focus-task main > section#s-work { opacity: 1; filter: none; }
+body.focus-on main > section:hover, body.focus-on #tiles:hover { opacity: 1; filter: none; }
+.tcard.fx-current { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-bg); }
+.fx-go { margin-left: 2px; }
+
+/* Picker */
+.fx-box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; width: min(420px, calc(100vw - 48px)); display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow); }
+.fx-title { font-size: 18px; font-weight: 700; }
+.fx-mins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.fx-min { border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 14px; padding: 14px 0 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; font: inherit; }
+.fx-min b { font-size: 28px; line-height: 1; letter-spacing: -.02em; }
+.fx-min small { color: var(--muted); }
+.fx-min.on { border-color: var(--green); background: var(--green-bg); }
+.fx-min.on b { color: var(--green); }
+.fx-lbl { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 12.5px; color: var(--muted); }
+.fx-lbl select { font: inherit; color: var(--text); background: var(--soft); border: 1px solid var(--line); border-radius: 9px; padding: 8px; }
+.fx-acts { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Vice */
+[data-theme="vice"] #focus-hud { background: rgba(22, 10, 44, .9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-color: #ff2e93; box-shadow: 0 0 0 1px rgba(255, 46, 147, .35), 0 0 28px rgba(255, 46, 147, .35); }
+[data-theme="vice"] .fx-ring .fg { stroke: #ffd23f; filter: drop-shadow(0 0 4px rgba(255, 210, 63, .8)); }
+[data-theme="vice"] .fx-dial b { color: #ffd23f; }
+[data-theme="vice"] .fx-txt small { color: #ff2e93; font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-style: italic; font-size: 12.5px; }
+[data-theme="vice"] .fx-box { background: #1e0f36; border-color: #55338a; }
+[data-theme="vice"] .fx-title { font: italic 900 30px/1 "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; text-transform: uppercase; color: #ffd23f; text-shadow: 0 3px 0 #3a0d57; }
+[data-theme="vice"] .fx-min { background: rgba(48, 29, 82, .9); border-color: #55338a; }
+[data-theme="vice"] .fx-min b { font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-style: italic; color: #4fd8ff; }
+[data-theme="vice"] .fx-min.on { border-color: #ff2e93; background: rgba(255, 46, 147, .16); box-shadow: 0 0 16px rgba(255, 46, 147, .35); }
+[data-theme="vice"] .fx-min.on b { color: #fff; }
+@media (prefers-reduced-motion: reduce) { .fx-ring .fg { transition: none; } }

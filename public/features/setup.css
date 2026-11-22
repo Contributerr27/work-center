@@ -1,0 +1,59 @@
+/* Settings overlay (public/features/setup.js). Tokens from app.css; works in every theme. */
+#settings-ov { z-index: 27; }
+.st-box { background: var(--bg); border: 1px solid var(--line); border-radius: 20px; width: min(1000px, 100%); height: min(760px, calc(100vh - 48px)); display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; box-shadow: var(--shadow); overflow: hidden; }
+.st-loading { padding: 40px; text-align: center; color: var(--muted); }
+.st-head { display: flex; align-items: center; gap: 12px; }
+.st-title { margin: 0; font-size: 20px; font-weight: 700; }
+.st-gap { flex: 1; }
+.st-grow { flex: 1; min-width: 0; }
+.st-grow .small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex: none; overflow-x: auto; }
+.st-tab { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 620; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.st-tab.on { color: var(--text); border-bottom-color: var(--blue); }
+.st-tab:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.st-pane { overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 2px 2px 12px; min-height: 0; flex: 1; }
+.st-pane.st-grid, .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; align-content: start; }
+.st-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+.st-card.st-row { flex-direction: row; }
+.st-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.st-sub { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.st-hero { background: linear-gradient(135deg, var(--blue-bg), var(--violet-bg)); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.st-hero b { font-size: 18px; }
+.st-hero p { margin: 0; max-width: 70ch; line-height: 1.45; }
+.st-big { font-size: 15px; padding: 10px 22px; }
+.st-job.busy { border-color: var(--blue); }
+.st-job.bad { border-color: var(--red); }
+.st-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.st-steps li { display: grid; grid-template-columns: 20px 1fr; gap: 0 6px; font-size: 13.5px; }
+.st-steps li small { grid-column: 2; color: var(--muted); }
+.st-steps .st-ic { font-weight: 800; text-align: center; color: var(--muted); }
+.st-steps .done .st-ic { color: var(--green); }
+.st-steps .failed .st-ic { color: var(--red); }
+.st-steps .running .st-ic { color: var(--blue); animation: st-pulse 1s infinite; }
+@keyframes st-pulse { 50% { opacity: .3; } }
+.st-needs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.st-need { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.st-need small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.st-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.st-need.ok .st-dot { background: var(--green); }
+.st-need.no .st-dot { background: var(--amber); }
+.st-tool.off { opacity: .55; }
+.st-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--muted); }
+.st-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.st-chips .chip { padding: 1px 8px; }
+.st-table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.st-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.st-table th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 650; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.st-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.st-table td .pill { margin-left: 6px; }
+.st-table .st-c { text-align: center; color: var(--green); }
+.st-sm { padding: 4px 10px; font-size: 12px; }
+.st-in { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 9px; padding: 7px 10px; font: inherit; min-width: 0; }
+.st-in:focus { outline: 2px solid var(--blue); outline-offset: 0; border-color: transparent; }
+.st-area { width: 100%; resize: vertical; line-height: 1.4; box-sizing: border-box; }
+.st-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 14px; }
+.st-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; min-width: 0; }
+.st-field small { font-weight: 400; font-size: 11.5px; }
+.st-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.linkbtn { border: 0; background: none; color: var(--blue); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
+@media (max-width: 640px) { .st-box { padding: 12px; border-radius: 14px; } }

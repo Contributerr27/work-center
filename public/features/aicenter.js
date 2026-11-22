@@ -1,0 +1,305 @@
+/* AI Center (every AI chat and run, by day, with a month calendar) and the floating AI bubble
+   (chat or terminal, three sizes, file and image attachments).
+   Uses page globals: h, $, D, post, toast, load, HQ, liveFeed. */
+(() => {
+  const OV = 'aic-ov';
+  const pad = (n) => String(n).padStart(2, '0');
+  const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseDay = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const hhmm = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '');
+  const dur = (a, b) => { if (!a || !b) return ''; const s = Math.round((new Date(b) - new Date(a)) / 1000); return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`; };
+  const KIND = { run: ['✦', 'Chat'], task: ['☑', 'Task'], autopilot: ['⟳', 'Autopilot'], scan: ['◎', 'Scan'], prd: ['▤', 'PRD'], setup: ['⚙', 'Setup'] };
+  const secName = (id) => ({ github: 'GitHub', jira: 'Jira', slack: 'Slack', work: 'Work', meet: 'Meetings', hq: 'AI chat' }[id] || id || '');
+  const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { /* no storage */ } return null; };
+
+  /* ================= AI Center ================= */
+  const A = { day: dayKey(new Date()), month: dayKey(new Date()).slice(0, 7), runs: [], counts: {}, sel: null, detail: null, q: '', timer: null, reply: '' };
+
+  async function getJson(url) { const r = await fetch(url); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Failed'); return j; }
+  async function loadDay(day) {
+    A.day = day;
+    try { A.runs = (await getJson(`/api/history?date=${day}`)).runs; } catch (e) { toast(e.message); A.runs = []; }
+    if (!A.runs.some((r) => r.id === A.sel)) { A.sel = A.runs[0]?.id || null; A.detail = null; }
+    if (A.sel) await loadRun(A.sel, true);
+    paint();
+  }
+  async function loadMonth(month) {
+    A.month = month;
+    try { A.counts = (await getJson(`/api/history/days?month=${month}`)).days; } catch (e) { A.counts = {}; }
+    paint();
+  }
+  async function loadRun(id, quiet) {
+    A.sel = id;
+    try { A.detail = await getJson(`/api/history/run?id=${encodeURIComponent(id)}&date=${A.day}`); } catch (e) { A.detail = { error: e.message }; }
+    if (!quiet) paint();
+  }
+  function tick() {
+    clearTimeout(A.timer);
+    if ($(OV)?.hidden) return;
+    const busy = A.runs.some((r) => r.running) || A.detail?.runs?.some((r) => r.running);
+    A.timer = setTimeout(async () => { if (A.day === dayKey(new Date())) { await loadDay(A.day); } tick(); }, busy ? 3000 : 20000);
+  }
+
+  window.openAICenter = async (day) => {
+    const ov = HQ.overlay(OV);
+    ov.hidden = false;
+    document.documentElement.classList.add('aic-open');
+    paint();
+    await Promise.all([loadMonth((day || A.day).slice(0, 7)), loadDay(day || A.day)]);
+    tick();
+  };
+  const close = () => { HQ.closeOverlay(OV); document.documentElement.classList.remove('aic-open'); clearTimeout(A.timer); };
+
+  function calendar() {
+    const [y, m] = A.month.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const start = (first.getDay() + 6) % 7; // weeks start Monday
+    const days = new Date(y, m, 0).getDate();
+    const today = dayKey(new Date());
+    const max = Math.max(1, ...Object.values(A.counts));
+    const shift = (n) => { const d = new Date(y, m - 1 + n, 1); loadMonth(dayKey(d).slice(0, 7)); };
+    const cells = [];
+    for (let i = 0; i < start; i++) cells.push(h('span', { class: 'aic-cd empty' }));
+    for (let d = 1; d <= days; d++) {
+      const k = `${A.month}-${pad(d)}`;
+      const n = A.counts[k] || 0;
+      const future = k > today;
+      cells.push(h('button', {
+        class: `aic-cd ${k === A.day ? 'sel' : ''} ${k === today ? 'today' : ''} ${n ? 'has' : ''}`,
+        disabled: future, title: n ? `${n} AI run${n === 1 ? '' : 's'}` : 'Nothing', 'aria-label': `${parseDay(k).toDateString()}, ${n} runs`,
+        style: n ? `--heat:${(0.25 + 0.75 * n / max).toFixed(2)}` : null,
+        onclick: () => loadDay(k),
+      }, String(d)));
+    }
+    return h('div', { class: 'aic-cal' },
+      h('div', { class: 'aic-cal-head' },
+        h('button', { class: 'aic-nav', onclick: () => shift(-1), 'aria-label': 'Previous month' }, '‹'),
+        h('b', {}, first.toLocaleDateString([], { month: 'long', year: 'numeric' })),
+        h('button', { class: 'aic-nav', onclick: () => shift(1), disabled: A.month >= today.slice(0, 7), 'aria-label': 'Next month' }, '›')),
+      h('div', { class: 'aic-cal-grid' }, ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((x) => h('span', { class: 'aic-dow' }, x)), cells));
+  }
+
+  function runTitle(r) { return r.title || r.text || r.label || 'AI run'; }
+  function sidebar() {
+    const q = A.q.toLowerCase();
+    const list = A.runs.filter((r) => !q || [runTitle(r), r.label, r.result, secName(r.section)].join(' ').toLowerCase().includes(q));
+    const d = parseDay(A.day);
+    const isToday = A.day === dayKey(new Date());
+    const step = (n) => { const x = parseDay(A.day); x.setDate(x.getDate() + n); const k = dayKey(x); if (k.slice(0, 7) !== A.month) loadMonth(k.slice(0, 7)); loadDay(k); };
+    return h('aside', { class: 'aic-side' },
+      calendar(),
+      h('div', { class: 'aic-dayhead' },
+        h('button', { class: 'aic-nav', onclick: () => step(-1), 'aria-label': 'Previous day' }, '‹'),
+        h('b', {}, isToday ? 'Today' : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })),
+        h('button', { class: 'aic-nav', onclick: () => step(1), disabled: isToday, 'aria-label': 'Next day' }, '›'),
+        h('span', { class: 'st-gap' }),
+        isToday ? null : h('button', { class: 'btn st-sm', onclick: () => { loadMonth(dayKey(new Date()).slice(0, 7)); loadDay(dayKey(new Date())); } }, 'Today')),
+      h('input', { class: 'st-in aic-search', type: 'search', placeholder: 'Filter this day…', value: A.q, oninput: (e) => { A.q = e.target.value; paintList(); } }),
+      h('div', { class: 'aic-list', id: 'aic-list' }, listItems(list)));
+  }
+  function listItems(list) {
+    if (!list.length) return h('div', { class: 'muted small aic-empty' }, A.runs.length ? 'No match' : 'No AI runs this day');
+    return list.map((r) => {
+      const [ic, kind] = KIND[r.kind] || KIND.run;
+      return h('button', { class: `aic-item ${r.id === A.sel ? 'sel' : ''} ${r.error ? 'bad' : ''}`, onclick: () => loadRun(r.id) },
+        h('span', { class: 'aic-ic', title: kind }, ic),
+        h('span', { class: 'aic-it' },
+          h('b', {}, runTitle(r)),
+          h('small', {}, [hhmm(r.startedAt), r.section ? secName(r.section) : kind, r.steps ? `${r.steps} steps` : null].filter(Boolean).join(' · '))),
+        r.running ? h('span', { class: 'spin' }) : r.error ? h('span', { class: 'aic-st bad' }, '✕') : (r.actions || []).length ? h('span', { class: 'pill green' }, r.actions.length) : null);
+    });
+  }
+  function paintList() {
+    const el = $('aic-list');
+    if (!el) return;
+    const q = A.q.toLowerCase();
+    el.replaceChildren(...[listItems(A.runs.filter((r) => !q || [runTitle(r), r.label, r.result].join(' ').toLowerCase().includes(q)))].flat());
+  }
+
+  function transcriptView(r) {
+    const steps = r.transcript || [];
+    const tools = steps.filter((s) => s.kind === 'tool');
+    const fails = tools.filter((s) => s.failed).length;
+    return h('div', { class: 'aic-run' },
+      r.text || r.title ? h('div', { class: 'aic-msg me' }, h('div', { class: 'aic-bub' }, r.text || r.title),
+        r.attachments?.length ? h('div', { class: 'aic-att' }, r.attachments.map((a) => h('span', { class: 'chip sm' }, `📎 ${a}`))) : null,
+        h('small', {}, [hhmm(r.startedAt), r.label ? `on ${r.label}` : null].filter(Boolean).join(' · '))) : null,
+      r.running ? liveFeed({ ...r, activity: steps.slice(-8).map((s) => ({ ...s, label: s.label || s.text?.split('\n')[0] })) }) : null,
+      tools.length || steps.length > 1 ? h('details', { class: 'aic-steps' },
+        h('summary', {}, `${tools.length} tool call${tools.length === 1 ? '' : 's'}${fails ? ` · ${fails} failed` : ''}${(r.actions || []).length ? ` · did ${r.actions.length} thing${r.actions.length === 1 ? '' : 's'}` : ''}`),
+        h('ol', { class: 'feed' }, steps.map((s) => h('li', { class: `${s.kind} ${s.failed ? 'bad' : ''} ${s.sub ? 'sub' : ''}` },
+          h('span', { class: 'ic' }, s.kind === 'text' ? '›' : s.failed ? '✕' : '✓'),
+          h('span', { class: 't' }, s.kind === 'text' ? s.text.split('\n')[0].slice(0, 200) : s.label, s.error ? h('small', { class: 'blocked' }, ` ${s.error.slice(0, 160)}`) : null))))) : null,
+      !r.running && (r.result || r.error || r.final?.text) ? h('div', { class: `aic-msg ai ${r.error ? 'bad' : ''}` },
+        h('div', { class: 'aic-bub' }, r.error || r.result || r.final?.text),
+        h('small', {}, [r.engine, r.finishedAt ? `done ${hhmm(r.finishedAt)}` : null, dur(r.startedAt, r.finishedAt), r.final?.cost ? `$${r.final.cost.toFixed(2)}` : null].filter(Boolean).join(' · '))) : null);
+  }
+
+  function main() {
+    if (!A.sel) return h('section', { class: 'aic-main aic-blank' }, h('div', {}, h('b', {}, 'Nothing selected'), h('p', { class: 'muted' }, 'Pick a day on the calendar, then a run from the list. Start a new chat with the ✦ bubble.')));
+    const d = A.detail;
+    if (!d) return h('section', { class: 'aic-main' }, h('div', { class: 'muted' }, 'Loading…'));
+    if (d.error) return h('section', { class: 'aic-main' }, h('div', { class: 'blocked' }, d.error));
+    const last = d.runs[d.runs.length - 1];
+    const canReply = last && !last.running && !['scan', 'prd', 'setup'].includes(last.kind) && !last.legacy && last.section;
+    return h('section', { class: 'aic-main' },
+      h('div', { class: 'aic-thread', id: 'aic-thread' }, d.runs.map(transcriptView)),
+      canReply ? h('form', { class: 'aic-reply', onsubmit: async (e) => {
+        e.preventDefault();
+        const t = A.reply.trim();
+        if (t.length < 2) return;
+        try { await post('/api/command', { section: last.section, text: t, thread: d.thread }); A.reply = ''; toast('Sent'); } catch (err) { return toast(err.message); }
+        await loadDay(dayKey(new Date()));
+        tick();
+      } },
+      h('input', { class: 'st-in', placeholder: 'Continue this chat…', value: A.reply, oninput: (e) => (A.reply = e.target.value) }),
+      h('button', { class: 'btn go', type: 'submit' }, 'Send')) : null);
+  }
+
+  function paint() {
+    const ov = $(OV);
+    if (!ov || ov.hidden) return;
+    const keepScroll = $('aic-thread')?.scrollTop;
+    const total = Object.values(A.counts).reduce((a, b) => a + b, 0);
+    ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'AI Center' },
+      h('header', { class: 'aic-head' },
+        h('h2', {}, '✦ AI Center'),
+        h('span', { class: 'muted small' }, `${total} AI run${total === 1 ? '' : 's'} in ${parseDay(`${A.month}-01`).toLocaleDateString([], { month: 'long' })}`),
+        h('span', { class: 'st-gap' }),
+        h('button', { class: 'btn ghost', onclick: () => { close(); openBubble('chat'); } }, '✦ New chat'),
+        h('button', { class: 'btn ghost', title: 'Cmd+Shift+T', onclick: () => { close(); window.openTerminal?.(); } }, '⌨ Terminal'),
+        h('button', { class: 'btn', onclick: close }, 'Close')),
+      h('div', { class: 'aic-body' }, sidebar(), main())));
+    const th = $('aic-thread');
+    if (th) th.scrollTop = keepScroll ?? th.scrollHeight;
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $(OV) && !$(OV).hidden) close(); });
+
+  /* ================= Floating AI bubble ================= */
+  const B = { open: false, mode: store('aib:mode') || 'chat', size: store('aib:size') || 'm', thread: store('aib:thread') || null, files: [], draft: '', sending: false, timer: null, cmds: [] };
+
+  function bubbleEls() {
+    let fab = $('aib-fab');
+    if (!fab) {
+      fab = h('button', { id: 'aib-fab', title: 'AI chat (⌘J)', 'aria-label': 'Open AI chat', onclick: () => (B.open ? closeBubble() : openBubble()) }, h('span', {}, '✦'));
+      document.body.append(fab, h('div', { id: 'aib-win', hidden: true, role: 'dialog', 'aria-label': 'AI chat' }));
+    }
+    return { fab, win: $('aib-win') };
+  }
+  function openBubble(mode) {
+    if (mode) B.mode = mode;
+    B.open = true;
+    paintBubble();
+    pollChat();
+  }
+  window.openAIBubble = openBubble;
+  function closeBubble() {
+    B.open = false;
+    window.unmountTerminal?.();
+    $('aib-win').hidden = true;
+    $('aib-fab').classList.remove('on');
+    clearTimeout(B.timer);
+  }
+  const setPref = (k, v) => { B[k] = v; store(`aib:${k}`, v); };
+
+  async function pollChat() {
+    clearTimeout(B.timer);
+    if (!B.open || B.mode !== 'chat') return;
+    try { B.cmds = (await (await fetch('/api/pings')).json()).commands || []; } catch (e) { /* server restarting */ }
+    paintMessages();
+    const running = B.cmds.some((c) => c.thread === B.thread && c.running);
+    B.timer = setTimeout(pollChat, running ? 1500 : 8000);
+  }
+
+  async function addFiles(fileList) {
+    for (const f of [...fileList].slice(0, 10 - B.files.length)) {
+      if (f.size > 20 * 1024 * 1024) { toast(`${f.name} is over 20 MB`); continue; }
+      const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+      try {
+        const up = await post('/api/ai/upload', { name: f.name || `pasted-${Date.now()}.png`, data });
+        B.files.push({ ...up, preview: f.type.startsWith('image/') ? data : null });
+      } catch (e) { toast(e.message); }
+    }
+    paintBubble();
+  }
+
+  async function send() {
+    const text = B.draft.trim();
+    if ((text.length < 2 && !B.files.length) || B.sending) return;
+    B.sending = true;
+    try {
+      const c = await post('/api/command', { section: 'hq', text: text || 'Look at the attached files.', thread: B.thread, files: B.files.map((f) => f.path) });
+      setPref('thread', c.thread);
+      B.draft = ''; B.files = [];
+    } catch (e) { toast(e.message); }
+    B.sending = false;
+    paintBubble();
+    pollChat();
+  }
+
+  function messages() {
+    const mine = B.cmds.filter((c) => B.thread && c.thread === B.thread).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+    if (!mine.length) return [h('div', { class: 'aib-hello' }, h('b', {}, `Hi${D?.config?.owner ? ` ${D.config.owner.split(' ')[0]}` : ''}, what should I do?`),
+      h('p', { class: 'muted small' }, `Ask anything or give a job: it runs with ${D?.config?.engine || 'your AI'} and all your connections. Drop in files or paste a screenshot.`),
+      h('div', { class: 'aib-sugg' }, ['What needs me today?', 'Summarize my open PRs', 'Draft my standup'].map((s) => h('button', { class: 'chip', onclick: () => { B.draft = s; send(); } }, s))))];
+    return mine.flatMap((c) => [
+      h('div', { class: 'aic-msg me' }, h('div', { class: 'aic-bub' }, c.text), c.attachments?.length ? h('div', { class: 'aic-att' }, c.attachments.map((a) => h('span', { class: 'chip sm' }, `📎 ${a}`))) : null),
+      c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || c.result || 'Done.'), liveFeed(c)),
+    ]);
+  }
+  function paintMessages() {
+    const box = $('aib-msgs');
+    if (!box) return;
+    const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+    box.replaceChildren(...messages().filter(Boolean));
+    if (atBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function paintBubble() {
+    const { fab, win } = bubbleEls();
+    fab.classList.toggle('on', B.open);
+    if (!B.open) return;
+    window.unmountTerminal?.(); // keep the live terminal safe while the window is rebuilt
+    win.hidden = false;
+    win.dataset.size = B.size;
+    const sizeBtn = (s, label, title) => h('button', { class: `aib-sz ${B.size === s ? 'on' : ''}`, title, 'aria-pressed': B.size === s ? 'true' : 'false', onclick: () => { setPref('size', s); paintBubble(); window.fitTerminal?.(); } }, label);
+    const modeBtn = (m, label) => h('button', { class: `aib-mode ${B.mode === m ? 'on' : ''}`, 'aria-pressed': B.mode === m ? 'true' : 'false', onclick: () => { if (B.mode === 'terminal' && m !== 'terminal') window.unmountTerminal?.(); setPref('mode', m); paintBubble(); pollChat(); } }, label);
+    const head = h('div', { class: 'aib-head' },
+      h('div', { class: 'aib-modes' }, modeBtn('chat', '✦ Chat'), modeBtn('terminal', '⌨ Terminal')),
+      h('span', { class: 'st-gap' }),
+      B.mode === 'chat' && B.thread ? h('button', { class: 'aib-x', title: 'New chat', onclick: () => { setPref('thread', ''); B.thread = null; paintBubble(); } }, '＋') : null,
+      sizeBtn('s', 'S', 'Small'), sizeBtn('m', 'M', 'Medium'), sizeBtn('l', '⤢', 'Full view'),
+      h('button', { class: 'aib-x', title: 'Open in AI Center', onclick: () => { const t = B.thread; closeBubble(); window.openAICenter(); if (t) setTimeout(() => loadRun(t), 400); } }, '↗'),
+      h('button', { class: 'aib-x', title: 'Close (⌘J)', 'aria-label': 'Close', onclick: closeBubble }, '✕'));
+    if (B.mode === 'terminal') {
+      const host = h('div', { class: 'aib-term' });
+      win.replaceChildren(head, host);
+      window.mountTerminal ? window.mountTerminal(host) : host.append('Terminal is not available');
+      return;
+    }
+    const fileIn = h('input', { type: 'file', multiple: true, hidden: true, onchange: (e) => addFiles(e.target.files) });
+    const ta = h('textarea', {
+      class: 'aib-in', rows: 2, placeholder: 'Ask or tell the AI… (Enter to send, Shift+Enter for a new line)',
+      oninput: (e) => (B.draft = e.target.value),
+      onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } },
+      onpaste: (e) => { const f = [...(e.clipboardData?.files || [])]; if (f.length) { e.preventDefault(); addFiles(f); } },
+    }, B.draft);
+    win.replaceChildren(head,
+      h('div', { class: 'aib-msgs', id: 'aib-msgs' }),
+      h('div', { class: 'aib-compose', ondragover: (e) => e.preventDefault(), ondrop: (e) => { e.preventDefault(); addFiles(e.dataTransfer.files); } },
+        B.files.length ? h('div', { class: 'aib-files' }, B.files.map((f, i) => h('span', { class: 'aib-file' },
+          f.preview ? h('img', { src: f.preview, alt: '' }) : h('span', {}, '📄'), h('span', { class: 'chip-t' }, f.name),
+          h('button', { class: 'chip-x', 'aria-label': `Remove ${f.name}`, onclick: () => { B.files.splice(i, 1); paintBubble(); } }, '×')))) : null,
+        h('div', { class: 'aib-row' },
+          h('button', { class: 'aib-attach', title: 'Add files or images', 'aria-label': 'Add files', onclick: () => fileIn.click() }, '📎'), fileIn,
+          ta,
+          h('button', { class: 'btn go', disabled: B.sending, onclick: send }, B.sending ? '…' : 'Send'))));
+    paintMessages();
+    requestAnimationFrame(() => ta.focus());
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'j') { e.preventDefault(); B.open ? closeBubble() : openBubble(); }
+  });
+  bubbleEls();
+})();
