@@ -489,6 +489,9 @@ function openView(id) {
 }
 function syncNav() {
   const open = VIEWS.find((v) => $(v) && !$(v).hidden) || '';
+  // While a full view is open, a cover hides the Day page around its rounded edges.
+  if (!$('view-veil')) document.body.append(h('div', { id: 'view-veil', 'aria-hidden': 'true' }));
+  document.documentElement.classList.toggle('view-open', !!open);
   for (const b of document.querySelectorAll('#side .nv[data-view]')) {
     const on = b.dataset.view === open;
     b.classList.toggle('on', on);

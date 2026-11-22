@@ -48,18 +48,6 @@
         h('button', { class: 'btn go hm-go', onclick: goToday }, 'Go to today →')));
   }
 
-  function quick() {
-    const b = (label, fn, title) => { const [ic, ...rest] = label.split(' '); const name = { '✦': 'ai', '🗂': 'list', '◫': 'projects', '🧭': 'growth', '⌨': 'scan', '🏆': 'score', '⚙': 'settings' }[ic]; return h('button', { class: 'hm-q', title: title || label, onclick: fn }, name && window.icon ? window.icon(name) : ic, rest.join(' ')); };
-    return h('div', { class: 'hm-quick' },
-      b('✦ New AI chat', () => { close(); window.openAIBubble?.('chat'); }),
-      b('🗂 AI Center', () => { close(); window.openAICenter?.(); }),
-      b('◫ Projects', () => { close(); window.openProjects?.(); }),
-      b('🧭 Growth & HR', () => { close(); window.openHR?.(); }),
-      b('⌨ Terminal', () => { close(); window.openTerminal?.(); }),
-      b('🏆 Scoreboard', () => { close(); $('btn-score')?.click(); }),
-      b('⚙ Settings', () => { close(); window.openSettings?.(); }));
-  }
-
   function todayCard() {
     const tasks = (D.tasks || []).filter((t) => !t.doneAt && t.status !== 'duplicate' && t.status !== 'failed');
     const rr = D.live?.github?.data?.reviewRequests?.length ?? null;
@@ -176,7 +164,7 @@
       h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('home') : null, 'Home'), h('span', { class: 'st-gap' }),
         h('button', { class: 'btn ghost', onclick: goToday }, 'Today’s missions'), h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'hm-scroll' }, h('div', { class: 'hm-wrap' },
-        safe(hero), safe(quick),
+        safe(hero),
         h('div', { class: 'hm-grid' }, safe(todayCard), safe(healthCard), safe(projectsCard), safe(statsCard), safe(aiCard), safe(heatCard), safe(winsCard), safe(tasksCard))))));
   }
 

@@ -104,3 +104,9 @@ html.panel-ai .aib-head button { -webkit-app-region: no-drag; }
 html.panel-phone #phone { position: fixed; inset: 0; width: auto; right: 0; bottom: 0; animation: none; display: block; }
 html.panel-phone #phone .ph { height: 100%; border-radius: 30px; display: flex; flex-direction: column; }
 html.panel-phone #phone .ph-list { flex: 1; max-height: none; }
+
+/* Cover behind an open full view (Home, Projects, Growth & HR, AI Center): the Day page must not show
+   through the gaps around the view's rounded edges. Inherits the page background, so wallpapers stay. */
+#view-veil { display: none; }
+html.view-open #view-veil { display: block; position: fixed; top: 0; right: 0; bottom: 0; left: calc(var(--side-w) + var(--gap) * 1.5); z-index: 24; background: inherit; pointer-events: auto; }
+html.panel #view-veil { display: none; }
