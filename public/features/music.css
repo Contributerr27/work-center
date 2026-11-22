@@ -69,3 +69,29 @@ html.panel-music .mu { border-radius: 30px; box-shadow: none; }
 [data-theme="winter"] .mu { background: var(--glass, var(--panel)); border-color: var(--glass-line, var(--line)); }
 [data-theme="winter"] .mu-head b { font-family: "Iowan Old Style", "Palatino", Georgia, serif; font-size: 17px; }
 @media (prefers-reduced-motion: reduce) { .mu-eq i, .mu-spin { animation: none; } .mu-eq i { height: 8px; } .mu-play { transition: none; } }
+
+/* Where it plays: a chip under the controls opens the device list. */
+.mu-where { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; }
+.mu-where:hover, .mu-where.open { border-color: var(--green); }
+.mu-where-n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-caret { color: var(--muted); }
+.mu-devs { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.mu-dev { display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.mu-dev:hover:not(:disabled) { background: var(--soft); }
+.mu-dev:disabled { cursor: default; opacity: .7; }
+.mu-dev.on { color: var(--green); }
+.mu-dev.here { border-bottom: 1px solid var(--line); border-radius: 9px 9px 4px 4px; }
+.mu-dev-i { width: 22px; text-align: center; }
+.mu-dev-n { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mu-dev-n b { font-weight: 600; }
+.mu-dev small, .mu-dev-n small { color: var(--muted); font-size: 11.5px; }
+.mu-dev.on > small { color: var(--green); font-weight: 600; }
+.mu-dev-empty { padding: 8px; }
+.mu-spin.dark { border-color: var(--line); border-top-color: var(--text); }
+.mu-where:focus-visible, .mu-dev:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+[data-theme="vice"] .mu-where, [data-theme="vice"] .mu-devs { background: #0d0618; border-color: #55338a; }
+[data-theme="vice"] .mu-dev.on, [data-theme="vice"] .mu-dev.on > small { color: #ff8ac5; }
+
+/* Quick search */
+.mu-search { padding: 6px 2px 0; }
+.mu-search input { width: 100%; box-sizing: border-box; border-radius: 10px; padding: 8px 12px; }

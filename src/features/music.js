@@ -189,13 +189,74 @@ module.exports = {
         const devices = (await api('/me/player/devices'))?.devices || [];
         const dev = devices.find((d) => d.is_active) || devices[0];
         if (!dev) return { via: 'link', url: webUrl(uri), reason: 'no-device' };
-        await api(`/me/player/play?device_id=${encodeURIComponent(dev.id)}`, { method: 'PUT', body: JSON.stringify({ context_uri: uri }) });
+        const what = uri.startsWith('spotify:track:') ? { uris: [uri] } : { context_uri: uri };
+        await api(`/me/player/play?device_id=${encodeURIComponent(dev.id)}`, { method: 'PUT', body: JSON.stringify(what) });
         return { via: 'api', device: dev.name };
       } catch (e) {
         if (e.reason === 'PREMIUM_REQUIRED' || e.status === 403) { write({ ...read(), premium: false }); return { via: 'link', url: webUrl(uri), reason: 'premium' }; }
         throw e;
       }
     });
+    // Quick search: songs and playlists.
+    ctx.route('GET', '/api/music/search', async ({ url }) => {
+      const q = String(url.searchParams.get('q') || '').trim().slice(0, 100);
+      if (!q) return { tracks: [], playlists: [] };
+      if (DEMO) {
+        const hit = (x) => x.name.toLowerCase().includes(q.toLowerCase());
+        const songs = ['Quiet Morning', 'Deploy Day', 'Green Build', 'Merge Conflict Blues', 'Standup Shuffle'].map((name, i) => ({ uri: `spotify:track:demo${String(i).padStart(18, '0')}`, type: 'track', name, owner: 'The Placeholders', image: DEMO_LISTS[i].image }));
+        return { tracks: songs.filter(hit), playlists: DEMO_LISTS.filter(hit) };
+      }
+      const r = await api(`/search?${new URLSearchParams({ q, type: 'track,playlist', limit: '6' })}`);
+      return {
+        tracks: (r?.tracks?.items || []).filter(Boolean).map((t) => ({ uri: t.uri, type: 'track', name: t.name, owner: (t.artists || []).map((a) => a.name).join(', '), image: t.album?.images?.slice(-1)[0]?.url || null })),
+        playlists: (r?.playlists?.items || []).filter(Boolean).map((p) => brief(p, 'playlist')),
+      };
+    });
+
+    // Devices: where Spotify can play. "here" marks this Mac (the desktop app or a web player in a browser).
+    let macName = null;
+    const thisMac = async () => macName ?? (macName = await new Promise((r) => execFile('scutil', ['--get', 'ComputerName'], { timeout: 3000 }, (e, o) => r(e ? require('node:os').hostname() : String(o).trim()))));
+    const DEMO_DEVICES = [{ id: 'demo-mac', name: 'This Mac', type: 'Computer', active: false, here: true }, { id: 'demo-speaker', name: 'Kitchen speaker', type: 'Speaker', active: true, here: false }];
+    async function devices() {
+      const [list, mac] = await Promise.all([api('/me/player/devices'), thisMac()]);
+      const norm = (s) => String(s || '').toLowerCase().replace(/[’']/g, '');
+      return (list?.devices || []).map((d) => ({
+        id: d.id, name: d.name, type: d.type, active: !!d.is_active, restricted: !!d.is_restricted,
+        here: d.type === 'Computer' && (norm(d.name) === norm(mac) || /^web player/i.test(d.name)),
+      }));
+    }
+    async function transfer(id) {
+      try { await api('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [id], play: true }) }); }
+      catch (e) {
+        if (e.reason === 'PREMIUM_REQUIRED' || e.status === 403) { write({ ...read(), premium: false }); throw err('Moving playback between devices needs Spotify Premium. You can pick the device in the Spotify app instead.', 403); }
+        throw e;
+      }
+    }
+    ctx.route('GET', '/api/music/devices', async () => {
+      if (DEMO) return { devices: DEMO_DEVICES, app: false };
+      return { devices: await devices(), app: !!appPath() };
+    });
+    ctx.route('POST', '/api/music/device', async ({ body }) => {
+      const id = String(body?.id || '');
+      if (!/^[\w-]{4,80}$/.test(id)) throw err('Unknown device');
+      if (DEMO) { DEMO_DEVICES.forEach((d) => (d.active = d.id === id)); demoNow = { ...demoNow, device: DEMO_DEVICES.find((d) => d.id === id)?.name }; return { ok: true }; }
+      await transfer(id);
+      return { ok: true };
+    });
+    // Play on this Mac: start the Spotify app (or a web player when it isn't installed), wait until it shows up
+    // as a device, then move playback to it.
+    ctx.route('POST', '/api/music/here', async () => {
+      if (DEMO) { DEMO_DEVICES.forEach((d) => (d.active = d.here)); demoNow = { ...demoNow, device: 'This Mac', playing: true }; return { ok: true, device: 'This Mac' }; }
+      let here = (await devices()).find((d) => d.here);
+      if (!here && appPath()) {
+        execFile('open', ['-a', appPath()]);
+        for (let i = 0; i < 20 && !here; i++) { await new Promise((r) => setTimeout(r, 1000)); here = (await devices().catch(() => [])).find((d) => d.here); }
+      }
+      if (!here) return { ok: false, open: 'https://open.spotify.com/' };
+      if (!here.active) await transfer(here.id);
+      return { ok: true, device: here.name };
+    });
+
     ctx.route('POST', '/api/music/control', async ({ body }) => {
       const a = body?.action;
       if (!['toggle', 'next', 'prev'].includes(a)) throw err('Unknown action');
