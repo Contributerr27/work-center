@@ -101,7 +101,7 @@
 
   HQ.onRender(() => {
     if (D?.ext?.focus && !D.ext.focus.error) apply(D.ext.focus);
-    btn.textContent = F?.active ? `🎯 ${mmss(left())}` : '🎯 Focus';
+    HQ.setLabel(btn, F?.active ? `Focus · ${mmss(left())}` : 'Focus'); btn.classList.toggle('live', !!F?.active);
     const byTitle = new Map((D?.tasks || []).filter((t) => t.status === 'ready' && !t.doneAt).map((t) => [t.title, t.id]));
     for (const card of document.querySelectorAll('#work .tcard')) {
       if (card.querySelector('.fx-go')) continue;

@@ -1,0 +1,66 @@
+/* Left sidebar menu: views (Home, Day, Projects, Growth & HR, AI Center), tools, and settings.
+   Full-page views start right of it; dialogs still cover the whole window. Tokens from app.css. */
+:root { --side-w: 220px; }
+html.side-mini { --side-w: 64px; }
+@media (max-width: 900px) { :root { --side-w: 64px; } }
+
+body { padding-left: var(--side-w); }
+#side {
+  position: fixed; left: 0; top: 0; bottom: 0; width: var(--side-w); z-index: 23; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 2px; padding: 40px 10px 12px; overflow-y: auto; overflow-x: hidden;
+  background: var(--panel); border-right: 1px solid var(--line);
+}
+.sd-brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 14px; -webkit-app-region: drag; }
+.sd-brand img { width: 26px; height: 26px; border-radius: 7px; flex: none; }
+.sd-brand b { font-size: 15px; font-weight: 750; letter-spacing: -.01em; white-space: nowrap; }
+.sd-sec { display: flex; flex-direction: column; gap: 2px; }
+.sd-lbl { font-size: 10.5px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 16px 10px 4px; white-space: nowrap; }
+.sd-fill { flex: 1; min-height: 16px; }
+#nav-bottom { border-top: 1px solid var(--line); padding-top: 8px; }
+
+.nv {
+  position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; box-sizing: border-box;
+  border: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 560;
+  padding: 7px 10px; border-radius: 10px; cursor: pointer; text-align: left; white-space: nowrap;
+}
+.nv:hover { background: var(--soft); }
+.nv:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.nv.on { background: var(--blue-bg); color: var(--blue); font-weight: 680; }
+.nv.on::before { content: ''; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--blue); }
+.nv-i { width: 22px; flex: none; text-align: center; font-size: 15px; line-height: 1; }
+.nv-l { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nv.live .nv-l { color: var(--violet); font-variant-numeric: tabular-nums; font-weight: 680; }
+.nv .ap-ind { flex: none; padding: 1px 7px; font-size: 10.5px; letter-spacing: .02em; cursor: inherit; }
+.nv .pbadge { position: static; margin-left: auto; }
+
+/* Collapsed: icons only, names on hover (title). */
+html.side-mini .sd-brand b, html.side-mini .nv-l, html.side-mini .sd-lbl { display: none; }
+html.side-mini .sd-brand { justify-content: center; padding: 6px 0 14px; }
+html.side-mini .nv { justify-content: center; padding: 7px 0; }
+html.side-mini .sd-lbl + .sd-sec { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+html.side-mini .nv .ap-ind { position: absolute; top: 4px; right: 6px; width: 8px; height: 8px; padding: 0; font-size: 0; border-radius: 50%; }
+html.side-mini .nv .ap-ind.on { background: var(--green); } html.side-mini .nv .ap-ind.paused { background: var(--amber); }
+html.side-mini .nv .ap-ind::before { display: none; }
+html.side-mini .nv .pbadge { position: absolute; top: 2px; right: 4px; }
+@media (max-width: 900px) {
+  .sd-brand b, .nv-l, .sd-lbl, #sd-collapse { display: none; }
+  .sd-brand { justify-content: center; padding: 6px 0 14px; }
+  .nv { justify-content: center; padding: 7px 0; }
+  .nv .ap-ind { position: absolute; top: 4px; right: 6px; width: 8px; height: 8px; padding: 0; font-size: 0; border-radius: 50%; }
+}
+
+/* Full-page views sit beside the menu; the menu stays usable. */
+#home-ov, #prj-ov, #hr-ov, #aic-ov { left: var(--side-w); }
+#home-ov .aic-head, #prj-ov .aic-head, #hr-ov .aic-head, #aic-ov .aic-head { padding-left: 24px; }
+#top { padding-top: 30px; }
+
+/* Themes */
+[data-theme="vice"] #side { background: rgba(18, 6, 31, .86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-right-color: rgba(255, 46, 147, .25); }
+[data-theme="vice"] .nv.on { background: rgba(255, 46, 147, .16); color: #ff7ab8; }
+[data-theme="vice"] .nv.on::before { background: linear-gradient(#ff2e93, #ff9a3d); }
+[data-theme="winter"] #side { background: rgba(255, 255, 255, .78); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+[data-theme="winter"] .nv.on { background: rgba(200, 16, 46, .08); color: #c8102e; }
+[data-theme="winter"] .nv.on::before { background: #c8102e; }
+[data-theme="winter"] .sd-brand b { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; color: #c8102e; }
+#wrap-offer { left: calc(var(--side-w) + 20px); }
+#focus-hud { left: calc(50% + var(--side-w) / 2); }

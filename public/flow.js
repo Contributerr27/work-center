@@ -41,6 +41,16 @@ const FLOW = [
    HQ.addButton({ id, label, title, onclick })          — a header button
    HQ.onRender(fn)                                       — called after every page render
    HQ.overlay(id)                                        — get/create a full-window overlay div (close with HQ.closeOverlay(id)) */
+// Sidebar places: views on top (full-page overlays), tools below. `view` is the overlay a view opens.
+const NAV = {
+  'btn-home': { sec: 'nav-views', ord: 0, view: 'home-ov', name: 'Home' },
+  'btn-projects': { sec: 'nav-views', ord: 2, view: 'prj-ov', name: 'Projects' },
+  'btn-hr': { sec: 'nav-views', ord: 3, view: 'hr-ov', name: 'Growth & HR' },
+  'btn-focus': { sec: 'nav-tools', ord: 10, name: 'Focus' },
+  'btn-autopilot': { sec: 'nav-tools', ord: 11, name: 'Autopilot' },
+  'btn-wrap': { sec: 'nav-tools', ord: 12, name: 'Wrap up' },
+};
+const VIEWS = ['home-ov', 'prj-ov', 'hr-ov', 'aic-ov'];
 const HQ = {
   _missions: [], _render: [], _buttons: [], _ready: false,
   addMission(def) {
@@ -53,11 +63,19 @@ const HQ = {
     $('main').insertBefore(sec, next ? $(next.sec) : null);
     if (HQ._ready) { initBar(def); if (D) render(); }
   },
+  // A menu item in the left sidebar. Known views and tools have a fixed place and name (NAV);
+  // anything else lands under Tools. The label's first word is the icon ("🎯 Focus").
   addButton(b) {
-    const el = h('button', { id: b.id, class: `btn ghost ${b.cls || ''}`, title: b.title || '', onclick: b.onclick }, b.label);
-    $('btn-theme').before(el);
+    const known = NAV[b.id] || {};
+    const [icon, ...rest] = String(b.label).split(' ');
+    const el = h('button', { id: b.id, class: `nv ${b.cls || ''}`, title: b.title || '', onclick: b.onclick, 'data-ord': known.ord ?? 50, 'data-view': known.view ?? null },
+      h('span', { class: 'nv-i' }, icon), h('span', { class: 'nv-l' }, known.name || rest.join(' ')));
+    const sec = $(known.sec || 'nav-tools');
+    const after = [...sec.children].find((x) => Number(x.dataset.ord ?? 50) > Number(el.dataset.ord));
+    sec.insertBefore(el, after || null);
     return el;
   },
+  setLabel(el, text) { const l = el?.querySelector('.nv-l'); if (l) l.textContent = text; else if (el) el.textContent = text; },
   onRender(fn) { HQ._render.push(fn); },
   overlay(id) {
     let el = document.getElementById(id);
@@ -97,16 +115,19 @@ function toggleThemeMenu() {
   if (m && !m.hidden) { m.hidden = true; return; }
   if (!m) { m = h('div', { id: 'theme-menu', role: 'menu', 'aria-label': 'Theme' }); document.body.append(m); }
   const r = $('btn-theme').getBoundingClientRect();
-  m.style.top = `${Math.round(r.bottom + 6)}px`;
-  m.style.right = `${Math.round(window.innerWidth - r.right)}px`;
+  m.style.left = `${Math.round(r.right + 8)}px`;
+  m.style.right = 'auto';
+  m.style.top = `${Math.round(r.top)}px`;
   m.replaceChildren(h('div', { class: 'tm-title' }, 'Theme'), ...THEMES.map((t) => h('button', {
     class: `tm-item ${t.id === theme() ? 'on' : ''}`, role: 'menuitemradio', 'aria-checked': t.id === theme() ? 'true' : 'false',
     onclick: () => { m.hidden = true; setTheme(t.id); },
   }, h('span', { class: 'tm-sw' }, t.sw.map((c) => h('i', { style: `background:${c}` }))), h('span', { class: 'tm-t' }, h('b', {}, t.name), h('small', {}, t.sub)), t.id === theme() ? h('span', { class: 'tm-ck' }, '✓') : null)));
   m.hidden = false;
+  // Opens beside the menu item; keep it on screen.
+  m.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - m.offsetHeight - 8))}px`;
   m.querySelector('.tm-item.on, .tm-item')?.focus();
 }
-document.addEventListener('click', (e) => { const m = $('theme-menu'); if (m && !m.hidden && !m.contains(e.target) && e.target.id !== 'btn-theme') m.hidden = true; });
+document.addEventListener('click', (e) => { const m = $('theme-menu'); if (m && !m.hidden && !m.contains(e.target) && !e.target.closest?.('#btn-theme')) m.hidden = true; });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('theme-menu') && !$('theme-menu').hidden) $('theme-menu').hidden = true; });
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const flowId = (id) => `flow:${dayKey()}:${id}`;
@@ -206,7 +227,7 @@ function renderFlow() {
   $('heat').replaceChildren(...[1, 2, 3, 4, 5].map((i) => h('i', { class: i <= wl.stars ? 'on' : '' }, '★')), h('small', {}, wl.label));
   $('heat').title = wl.why;
   $('btn-all').textContent = showAll ? 'Focus mode' : 'Show all';
-  $('btn-theme').textContent = `🎨 ${(THEMES.find((t) => t.id === theme()) || THEMES[0]).name}`;
+  HQ.setLabel($('btn-theme'), `Theme · ${(THEMES.find((t) => t.id === theme()) || THEMES[0]).name}`);
   for (const [i, s] of FLOW.entries()) {
     const sec = $(s.sec), st = stepState(s.id), isCur = s.id === cur;
     sec.className = `${isCur ? 'cur' : ''} ${!showAll && !isCur ? 'collapsed' : ''} step-${st}`;
@@ -314,4 +335,45 @@ function initChrome() {
   $('btn-all').onclick = () => { showAll = !showAll; store('showAll', showAll ? '1' : '0'); render(); };
   $('btn-theme').onclick = (e) => { e.stopPropagation(); toggleThemeMenu(); };
   initHQ();
+  initNav();
+}
+
+/* ---------- Left sidebar: one view at a time, active item follows whatever view is open ---------- */
+function openView(id) {
+  for (const v of VIEWS) if (v !== id && $(v) && !$(v).hidden) $(v).hidden = true;
+  if (!id) document.documentElement.classList.remove('aic-open');
+}
+function syncNav() {
+  const open = VIEWS.find((v) => $(v) && !$(v).hidden) || '';
+  for (const b of document.querySelectorAll('#side .nv[data-view]')) {
+    const on = b.dataset.view === open;
+    b.classList.toggle('on', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  }
+}
+function initNav() {
+  const mini = () => document.documentElement.classList.contains('side-mini');
+  const setMini = (v) => {
+    document.documentElement.classList.toggle('side-mini', v);
+    store('sideMini', v ? '1' : '0');
+    HQ.setLabel($('sd-collapse'), v ? 'Expand' : 'Collapse');
+    $('sd-collapse').querySelector('.nv-i').textContent = v ? '⇥' : '⇤';
+    $('sd-collapse').title = v ? 'Expand the menu' : 'Collapse the menu';
+  };
+  setMini(store('sideMini') === '1');
+  $('sd-collapse').onclick = () => setMini(!mini());
+  $('nav-day').onclick = () => { openView(''); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  // Before a view's own handler opens it, close whichever other view is up.
+  $('side').addEventListener('click', (e) => { const b = e.target.closest('.nv[data-view]'); if (b && b.dataset.view) openView(b.dataset.view); }, true);
+  let queued = false;
+  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; syncNav(); }); } })
+    .observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden'] });
+  syncNav();
+  // ⌘1–⌘5: Home, Day, Projects, Growth & HR, AI Center.
+  const keys = ['btn-home', 'nav-day', 'btn-projects', 'btn-hr', 'btn-term'];
+  document.addEventListener('keydown', (e) => {
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+    const i = Number(e.key) - 1;
+    if (i >= 0 && i < keys.length && $(keys[i])) { e.preventDefault(); $(keys[i]).click(); }
+  });
 }

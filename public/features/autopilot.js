@@ -262,11 +262,12 @@
     const n = a?.enabledCount || 0;
     ind.hidden = !n && !a?.paused;
     ind.className = `pill ap-ind ${a?.paused ? 'paused' : 'on'} ${a?.running ? 'busy' : ''}`;
-    ind.textContent = a?.paused ? 'AUTOPILOT PAUSED' : `AUTOPILOT ON · ${n} rule${n === 1 ? '' : 's'}`;
+    ind.textContent = a?.paused ? 'Paused' : `On · ${n}`;
+    ind.title = a?.paused ? 'Autopilot is paused' : `Autopilot on: ${n} rule${n === 1 ? '' : 's'}`;
   }
   btn = HQ.addButton({ id: 'btn-autopilot', label: '🤖 Autopilot', title: 'Standing rules the AI runs on a schedule', onclick: open });
-  ind = h('button', { class: 'pill ap-ind', hidden: true, title: 'Open Autopilot', onclick: open });
-  btn.after(ind);
+  ind = h('span', { class: 'pill ap-ind', hidden: true });
+  btn.append(ind);
   HQ.onRender(() => {
     if (D?.ext?.autopilot) AP = D.ext.autopilot;
     renderIndicator();
