@@ -215,7 +215,7 @@ setTimeout(syncScheme, 0);
 /* Wording follows the theme: plain work words in Normal, missions and Respect in Vice, an alpine
    expedition in Winter. term(key) for labels, stepName(step) for a step's title. */
 const TERMS = {
-  normal: { day: 'Today', score: 'Score', board: 'Scoreboard', step: null, stepsDone: 'Steps done', passed: 'Done', wrap: 'Wrap up', wrapTitle: 'Day wrap-up', messages: 'Messages', focus: 'Focus', perDay: 'Score per day', bugs: 'My open bugs', stories: 'Stories finished', debrief: 'AI wrap-up', weekly: 'Weekly report' },
+  normal: { day: 'Today', score: 'Score', board: 'Progress', step: null, stepsDone: 'Steps done', passed: 'Done', wrap: 'Wrap up', wrapTitle: 'Day wrap-up', messages: 'Messages', focus: 'Focus', perDay: 'Score per day', bugs: 'My open bugs', stories: 'Stories finished', debrief: 'AI wrap-up', weekly: 'Weekly report' },
   vice: { day: 'Missions', score: 'Respect', board: 'Respect', step: 'Mission', stepsDone: 'Missions passed', passed: 'Mission passed', wrap: 'Debrief', wrapTitle: 'Mission summary', messages: 'Phone', focus: 'Focus mission', perDay: 'Respect per day', bugs: 'Heat on the street', stories: 'Jobs done', debrief: 'Debrief', weekly: 'Weekly report · for the boss' },
   winter: { day: 'Expedition', score: 'Altitude', board: 'Summit log', step: 'Camp', stepsDone: 'Camps reached', passed: 'Camp reached', wrap: 'Back to base', wrapTitle: 'Back at base camp', messages: 'Radio', focus: 'Deep trail', perDay: 'Altitude per day', bugs: 'Avalanche watch', stories: 'Peaks climbed', debrief: 'Fireside debrief', weekly: 'Weekly expedition log' },
 };

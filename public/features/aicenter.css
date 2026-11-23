@@ -202,3 +202,16 @@ html.term-open #aib-fab { display: none; }
 .act-sum .chip.on { background: var(--blue); color: #fff; border-color: var(--blue); display: inline-flex; align-items: center; gap: 4px; }
 .act-sum .tm-av.sm { width: 16px; height: 16px; font-size: 10px; }
 .act-caret { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+/* @ a teammate in the chat */
+.aib-compose { position: relative; }
+.aib-mention { position: absolute; left: 44px; bottom: calc(100% - 4px); z-index: 30; width: min(300px, calc(100% - 60px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 16px 40px rgba(0, 0, 0, .3); display: flex; flex-direction: column; gap: 2px; }
+.aib-mention .am-row.on { background: var(--soft); outline: 1px solid var(--blue); }
+.aib-mate { display: flex; align-items: center; gap: 6px; margin: 6px 0 -2px 2px; font-size: 12.5px; }
+.aib-mate .tm-av.xs { width: 20px; height: 20px; font-size: 11px; }
+.aic-msg.mate .aic-bub { border-left: 3px solid var(--violet, #7c5cff); }
+
+/* Quoted context in your chat messages, folded */
+.aic-quote { margin-top: 8px; border-top: 1px solid rgba(255, 255, 255, .25); padding-top: 6px; font-size: 12.5px; }
+.aic-quote summary { cursor: pointer; opacity: .9; }
+.aic-qt { white-space: pre-wrap; opacity: .85; margin-top: 4px; max-height: 220px; overflow: auto; }

@@ -51,6 +51,7 @@ function tasksPanel() {
         h('b', { title: t.title }, t.title),
         t.priority && h('span', { class: `pill ${pc[t.priority] || ''}` }, t.priority),
         t.due && h('span', { class: 'pill' }, `Due ${t.due}`),
+        t.owner?.id ? window.ownerChip?.(t.owner) : t.status === 'ready' && window.assignMenu ? h('button', { class: 'btn sm ghost', title: 'Give this task to your assistant or a teammate', onclick: (e) => window.assignMenu(e.currentTarget, { kind: 'task', title: t.title, detail: [t.summary, ...(t.steps || []).map((s) => `- ${s.text}`)].filter(Boolean).join('\n'), url: t.source?.url || '', taskId: t.id }) }, '→ Assign') : null,
         t.status === 'ready' && itemActions('work', refs.task(t)),
         h('button', { class: 'ibtn', title: 'Remove task', onclick: () => confirm(`Remove "${t.title}"?`) && updateTask(t.id, { remove: true }) }, '×')),
       t.status === 'planning' && h('div', { class: 'muted small pulse' }, `✦ Reading ${t.source?.label || 'the item'} and its linked docs…`),
@@ -107,6 +108,8 @@ function renderPhone() {
         p.answered ? h('span', { class: `pill ${p.answered === 'declined' ? 'red' : 'green'}` }, p.answered === 'declined' ? '✕ Declined' : '✓ Approved')
           : [h('button', { class: 'btn sm go', title: p.reply ? 'Send this reply as you' : 'Approve: the teammate does exactly this now', onclick: () => resolveTeam(p, 'approve') }, p.reply ? 'Send' : 'Approve'),
             p.reply ? h('button', { class: 'btn sm', title: 'Change the words, then send', onclick: async () => { const t = await askText('Edit the reply, then send it as you', { value: p.detail || '', ok: 'Send' }); if (t && t.trim()) resolveTeam(p, 'approve', t.trim()); } }, 'Edit') : null,
+            h('button', { class: 'btn sm', title: 'Ask for changes: it rewrites the suggestion for you to approve', onclick: async () => { const note = await askText('What should change?', { hint: 'Your teammate rewrites it and brings it back here for approval.', ok: 'Propose' }); if (note && note.trim()) { try { await post('/api/team/resolve', { id: p.teamItem, decision: 'revise', note: note.trim() }); toast('Rewriting it with your notes'); p.answered = null; p.revising = true; renderPhone(); } catch (e) { toast(e.message); } } } }, p.revising ? 'Revising…' : 'Propose changes'),
+            p.reply ? h('button', { class: 'btn sm ghost', title: 'You already replied yourself: drop this draft (nothing is sent)', onclick: async () => { try { await post('/api/team/resolve', { id: p.teamItem, decision: 'dismiss', note: 'I already answered this myself; no reply needed.' }); toast('Got it: draft dropped'); dismissPings([p.id]); } catch (e) { toast(e.message); } } }, '✓ Already answered') : null,
             h('button', { class: 'btn sm ghost', onclick: () => resolveTeam(p, 'decline') }, 'Decline')],
         p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
         window.openTeam && h('button', { class: 'btn sm ghost', title: 'Open this teammate', onclick: () => { closePhone(); window.openTeam(p.teamMember); } }, 'Team'))
@@ -119,6 +122,7 @@ function renderPhone() {
       : h('div', { class: 'ph-acts' },
         p.kind !== 'fyi' && h('button', { class: 'btn sm go', onclick: async () => { const pre = p.draft ? (p.source === 'gmail' ? `Reply to this email with: "${p.draft}"` : `Reply in the thread with: "${p.draft}"`) : ''; if (PANEL_MODE && await shellMain('askAbout', 'slack', pingRef(p), pre)) return; closePhone(); askAbout('slack', pingRef(p), pre); } }, 'Reply'),
         h('button', { class: 'btn sm', onclick: () => { closePhone(); createTask('slack', pingRef(p)); } }, '＋ Task'),
+        p.assignedTo ? window.ownerChip?.(p.assignedTo) : window.assignMenu ? h('button', { class: 'btn sm', title: 'Hand it to your assistant or a teammate', onclick: (e) => window.assignMenu(e.currentTarget, { kind: 'message', title: `${p.who || 'Someone'} (${p.channel || p.source}): ${p.summary}`, detail: p.draft ? `Suggested reply: ${p.draft}` : '', url: p.url, pingId: p.id }, () => pollPings?.()) }, '→ Assign') : null,
         p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
         h('button', { class: 'btn sm ghost ph-ok', title: 'Got it: remove from the phone', 'aria-label': 'Acknowledge and remove', onclick: () => dismissPings([p.id]) }, '✓'))))
       : h('div', { class: 'empty' }, 'No new messages')),
@@ -228,7 +232,7 @@ function initHQ() {
   // Messages open in a panel attached to the left of the window (in a browser: inside the page).
   $('btn-phone').onclick = async () => { if (await shellPanel('phone', { toggle: true })) return; phoneOpen ? closePhone() : openPhone(); };
   if (PANEL_MODE === 'phone') { phoneOpen = true; HQ.onRender(renderPhone); setInterval(pollPings, 8000); }
-  $('btn-score').onclick = () => (window.openScoreboard ? window.openScoreboard('today') : toast('Scoreboard is not installed yet'));
+  $('btn-score').onclick = () => (window.openScoreboard ? window.openScoreboard('today') : toast('Progress is not installed yet'));
   $('respect').onclick = () => window.openScoreboard?.('today');
   $('btn-term').onclick = () => (window.openAICenter ? window.openAICenter() : window.openTerminal?.());
   $('btn-settings').onclick = () => (window.openSettings ? window.openSettings() : toast('Settings are still loading'));

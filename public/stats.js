@@ -38,7 +38,7 @@
   function shell() {
     let el = $('scoreboard');
     if (el) return el;
-    el = h('div', { id: 'scoreboard', hidden: true, role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Scoreboard',
+    el = h('div', { id: 'scoreboard', hidden: true, role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Progress',
       onclick: (e) => { if (e.target === el) close(); } },
       h('div', { class: 'sb-box' },
         h('header', { class: 'sb-head' },

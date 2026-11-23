@@ -285,9 +285,13 @@
     if ((text.length < 2 && !B.files.length && !B.quote) || B.sending) return;
     B.sending = true;
     const q = B.quote;
-    const body = (text || (q ? 'Help me with this.' : 'Look at the attached files.')) + (q ? `\n\nAbout this (${q.where}):\n\"\"\"\n${q.text}\n\"\"\"${q.url ? `\nLink: ${q.url}` : ''}` : '');
+    const body = (text || (q ? 'Help me with this.' : 'Look at the attached files.')) + (q ? `\n\nAbout this (${q.where || q.label || 'what I am looking at'}):\n\"\"\"\n${q.text}\n\"\"\"${q.url ? `\nLink: ${q.url}` : ''}` : '');
+    // @Name → that teammate answers in this chat (and takes it on).
+    const mate = (window.teamRoster?.() || []).find((m) => new RegExp(`(^|\\s)@${m.name}\\b`, 'i').test(text));
     try {
-      const c = await post('/api/command', { section: 'hq', text: body.slice(0, 5800), thread: B.thread, files: B.files.map((f) => f.path), context: window.viewContext?.() || null });
+      const c = mate
+        ? await post('/api/team/ask', { to: mate.id, text: body.slice(0, 5800), thread: B.thread, context: window.viewContext?.() || null })
+        : await post('/api/command', { section: 'hq', text: body.slice(0, 5800), thread: B.thread, files: B.files.map((f) => f.path), context: window.viewContext?.() || null });
       setPref('thread', c.thread);
       B.draft = ''; B.files = []; B.quote = null;
     } catch (e) { toast(e.message); }
@@ -306,14 +310,25 @@
     box.replaceChildren(...cards);
   }
   window.aibRepaint = () => paintAsks();
+  // Your message: your words, with the attached context (the "About this (…)" quote block) folded into a chip.
+  const QUOTE = /^([\s\S]*?)\n\nAbout this \(([^)]*)\):\n"""\n([\s\S]*?)\n"""(?:\nLink: (\S+))?\s*$/;
+  function userBubble(text) {
+    const m = String(text || '').match(QUOTE);
+    if (!m) return h('div', { class: 'aic-bub' }, text);
+    const label = !m[2] || m[2] === 'undefined' ? 'what you were looking at' : m[2];
+    return h('div', { class: 'aic-bub' }, m[1],
+      h('details', { class: 'aic-quote' }, h('summary', {}, `❝ About ${label}`), h('div', { class: 'aic-qt' }, m[3]),
+        m[4] ? h('a', { class: 'link small', href: m[4] }, 'Open ↗') : null));
+  }
   function messages() {
     const mine = B.cmds.filter((c) => B.thread && c.thread === B.thread).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
     if (!mine.length) return [h('div', { class: 'aib-hello' }, h('b', {}, `Hi${D?.config?.owner ? ` ${D.config.owner.split(' ')[0]}` : ''}, what should I do?`),
       h('p', { class: 'muted small' }, `Ask anything, give a job, or tell it a fact (\"Thomas left the company\") and it updates Work Center. It runs with ${D?.config?.engine || 'your AI'} and all your connections; it sees what you are looking at.`),
       h('div', { class: 'aib-sugg' }, ((window.viewContext?.() || {}).suggest || ['What needs me today?', 'Summarize my open PRs', 'Draft my standup']).map((s) => h('button', { class: 'chip', onclick: () => { B.draft = s; send(); } }, s))))];
     return mine.flatMap((c) => [
-      h('div', { class: 'aic-msg me' }, h('div', { class: 'aic-bub' }, c.text), c.attachments?.length ? h('div', { class: 'aic-att' }, c.attachments.map((a) => h('span', { class: 'chip sm' }, `📎 ${a}`))) : null),
-      c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''}` }, h('div', { class: 'aic-bub' }, c.error || window.md(c.result || 'Done.')), liveFeed(c)),
+      h('div', { class: 'aic-msg me' }, userBubble(c.text), c.attachments?.length ? h('div', { class: 'aic-att' }, c.attachments.map((a) => h('span', { class: 'chip sm' }, `📎 ${a}`))) : null),
+      c.asTeammate ? h('div', { class: 'aib-mate' }, h('span', { class: 'tm-av xs', style: `--c:${c.asTeammate.color || '#6d5efc'}` }, c.asTeammate.emoji || c.asTeammate.name[0]), h('b', {}, c.asTeammate.name), c.running ? h('span', { class: 'muted small' }, 'is replying…') : null) : null,
+      c.running ? liveFeed(c) : h('div', { class: `aic-msg ai ${c.error ? 'bad' : ''} ${c.asTeammate ? 'mate' : ''}` }, h('div', { class: 'aic-bub' }, c.error || window.md(c.result || 'Done.')), liveFeed(c)),
     ]);
   }
   function paintMessages() {
@@ -322,6 +337,44 @@
     const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
     box.replaceChildren(...messages().filter(Boolean));
     if (atBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  /* ---------- @ a teammate: autocomplete in the chat box ---------- */
+  let M = null; // { el, list, i, start }
+  function closeMention() { M?.el.remove(); M = null; }
+  function mention(ta) {
+    const upto = ta.value.slice(0, ta.selectionStart);
+    const m = upto.match(/(^|\s)@([\w-]*)$/);
+    const roster = (window.teamRoster?.() || []).filter((x) => x.enabled !== false);
+    if (!m || !roster.length) return closeMention();
+    const q = m[2].toLowerCase();
+    const list = roster.filter((x) => x.name.toLowerCase().startsWith(q) || (x.role || '').toLowerCase().includes(q)).slice(0, 8);
+    if (!list.length) return closeMention();
+    const start = upto.length - m[2].length - 1;
+    if (!M) { M = { el: h('div', { class: 'aib-mention', role: 'listbox' }), i: 0 }; ta.closest('.aib-compose')?.append(M.el); }
+    Object.assign(M, { list, start, ta, i: Math.min(M.i, list.length - 1) });
+    M.el.replaceChildren(h('div', { class: 'muted small am-h' }, 'Ask a teammate'), ...list.map((x, i) => h('button', {
+      class: `am-row ${i === M.i ? 'on' : ''}`, role: 'option', 'aria-selected': i === M.i ? 'true' : 'false',
+      onmousedown: (e) => { e.preventDefault(); pickMention(i); },
+    }, h('span', { class: 'tm-av sm', style: `--c:${x.color || '#6d5efc'}` }, x.emoji || x.name[0]), h('span', { class: 'am-n' }, h('b', {}, x.name), h('small', { class: 'muted' }, x.role)))));
+  }
+  function pickMention(i) {
+    if (!M) return;
+    const x = M.list[i], ta = M.ta;
+    const before = ta.value.slice(0, M.start), after = ta.value.slice(ta.selectionStart);
+    ta.value = `${before}@${x.name} ${after}`;
+    B.draft = ta.value;
+    const pos = before.length + x.name.length + 2;
+    ta.setSelectionRange(pos, pos);
+    closeMention();
+    ta.focus();
+  }
+  function mentionKey(e) {
+    if (!M) return false;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); M.i = (M.i + (e.key === 'ArrowDown' ? 1 : M.list.length - 1)) % M.list.length; mention(M.ta); return true; }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(M.i); return true; }
+    if (e.key === 'Escape') { e.preventDefault(); closeMention(); return true; }
+    return false;
   }
 
   function paintBubble() {
@@ -348,9 +401,10 @@
     }
     const fileIn = h('input', { type: 'file', multiple: true, hidden: true, onchange: (e) => addFiles(e.target.files) });
     const ta = h('textarea', {
-      class: 'aib-in', rows: 2, placeholder: 'Ask or tell the AI… (Enter to send, Shift+Enter for a new line)',
-      oninput: (e) => (B.draft = e.target.value),
-      onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } },
+      class: 'aib-in', rows: 2, placeholder: 'Ask the AI, or @ a teammate… (Enter to send, Shift+Enter for a new line)',
+      oninput: (e) => { B.draft = e.target.value; mention(e.target); },
+      onkeydown: (e) => { if (mentionKey(e)) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } },
+      onblur: () => setTimeout(() => closeMention(), 150),
       onpaste: (e) => { const f = [...(e.clipboardData?.files || [])]; if (f.length) { e.preventDefault(); addFiles(f); } },
     }, B.draft);
     win.replaceChildren(head,

@@ -73,6 +73,36 @@
   // Who is on the team (for owner avatars across the app).
   window.teamRoster = () => T?.members || [];
 
+  /* ---------- Assign menu: hand a message, task or item to the assistant (who routes it) or a teammate ---------- */
+  window.assignMenu = (anchor, item, done) => {
+    document.getElementById('assign-menu')?.remove();
+    const roster = (T?.members || []).filter((m) => m.enabled !== false);
+    const asst = roster.find((m) => m.assistant);
+    const pick = async (to, label) => {
+      menu.remove();
+      try {
+        const r = await post('/api/team/assign', { to, ...item });
+        toast(r.routing ? `${r.to.name} will route it to the right teammate` : `Assigned to ${r.to.name}: on it now`);
+        load(); done?.(r);
+      } catch (e) { toast(e.message); }
+    };
+    const row = (m, sub, to) => h('button', { class: 'am-row', onclick: () => pick(to || m.id) }, avatar(m, 'sm'), h('span', { class: 'am-n' }, h('b', {}, m.name), h('small', { class: 'muted' }, sub || m.role)));
+    const menu = h('div', { id: 'assign-menu', role: 'menu' },
+      h('div', { class: 'am-h muted small' }, 'Assign to'),
+      asst ? row(asst, 'Your assistant: routes it to the right teammate', 'assistant') : h('div', { class: 'am-tip small muted' }, 'Hire an assistant with Ariadne to route things for you.'),
+      asst ? h('div', { class: 'am-sep' }) : null,
+      roster.filter((m) => m !== asst).map((m) => row(m)),
+      !roster.length ? h('div', { class: 'am-tip small muted' }, 'No teammates are on yet.') : null);
+    document.body.append(menu);
+    const r = anchor.getBoundingClientRect();
+    const w = 280, hgt = menu.offsetHeight;
+    menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+    menu.style.top = `${r.bottom + 6 + hgt > innerHeight - 8 ? Math.max(8, r.top - hgt - 6) : r.bottom + 6}px`;
+    setTimeout(() => document.addEventListener('mousedown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', off, true); } }, true), 0);
+  };
+  window.ownerChip = (o) => (o ? h('button', { class: 'own-chip', title: `${o.name} is on it`, onclick: (e) => { e.stopPropagation(); window.openTeam?.(o.id); } }, avatar(full(o), 'xs'), o.name) : null);
+  const full = (o) => (T?.members || []).find((m) => m.id === o.id) || o;
+
   /* ---------- Growth & HR → AI team: levels, the path up, Ariadne's reviews, what each one learned ---------- */
   window.teamGrowth = () => {
     if (!T) { load(); return h('div', { class: 'muted' }, 'Loading your team…'); }
@@ -235,8 +265,9 @@
       lv.promotions?.length ? h('div', { class: 'small muted' }, lv.promotions.map((p) => `Promoted to Level ${p.to} · ${p.title} ${ago(p.at)}`).join(' · ')) : null) : null;
     const charter = null;
     const needs = open.length ? sec(`Needs you (${open.length})`, h('div', { class: 'tm-needs' }, open.map((i) => i.kind === 'approval' || i.kind === 'promotion' || i.kind === 'wake'
-      ? h('div', { class: `tm-need ${i.kind === 'promotion' ? 'promo' : ''}` }, h('div', {}, h('b', {}, i.kind === 'promotion' ? `🧭 ${i.title}` : i.title), i.detail ? h('div', { class: 'muted small' }, i.detail) : null, keyEl(i.key, i.url)),
+      ? h('div', { class: `tm-need ${i.kind === 'promotion' ? 'promo' : ''}` }, h('div', {}, i.revising ? h('div', { class: 'small pulse' }, `✦ Rewriting with your notes: ${i.revisionNote}`) : i.changed ? h('div', { class: 'small tm-changed' }, `Revised: ${i.changed}`) : null, h('b', {}, i.kind === 'promotion' ? `🧭 ${i.title}` : i.title), i.detail ? h('div', { class: 'muted small' }, i.detail) : null, keyEl(i.key, i.url)),
         h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, i.kind === 'promotion' ? `${m.name} was promoted 🎉` : `Approved · ${m.name} is doing it now`) }, i.kind === 'promotion' ? 'Promote' : i.kind === 'wake' ? 'Let it follow up' : i.reply ? 'Send' : 'Approve'),
+          i.kind !== 'promotion' && i.kind !== 'wake' ? h('button', { class: 'btn sm', disabled: !!i.revising, title: 'Ask for changes: it rewrites the suggestion for you to approve', onclick: async () => { const note = await askText('What should change?', { hint: `${m.name} rewrites it and brings it back for your approval.`, ok: 'Propose' }); if (note && note.trim()) act('/api/team/resolve', { id: i.id, decision: 'revise', note: note.trim() }, `${m.name} is revising it`); } }, i.revising ? 'Revising…' : 'Propose changes') : null,
           i.reply ? h('button', { class: 'btn sm', onclick: async () => { const t = await askText('Edit the reply, then send it as you', { value: i.detail || '', ok: 'Send' }); if (t && t.trim()) act('/api/team/resolve', { id: i.id, decision: 'approve', text: t.trim() }, 'Sending your reply'); } }, 'Edit') : null,
           h('button', { class: 'btn sm ghost', onclick: async () => { const note = await askText('Decline. Why? (optional)', { hint: 'They read it next shift.', ok: 'Decline' }); if (note !== null) act('/api/team/resolve', { id: i.id, decision: 'decline', note }, 'Declined'); } }, 'Decline')))
       : h('div', { class: 'tm-need q' }, h('div', {}, h('b', {}, `Question: ${i.title}`), keyEl(i.key, i.url)),

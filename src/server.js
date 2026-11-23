@@ -393,6 +393,13 @@ function mergeIntoTask(id, source, links = []) {
   return t;
 }
 
+// The AI team, so a new task can name the teammate whose job it is (Team assigns it; see src/features/team.js).
+function teamHint() {
+  let list = [];
+  try { list = (JSON.parse(fs.readFileSync(path.join(DATA, 'team', 'members.json'), 'utf8')).members || []).filter((m) => m.enabled !== false); } catch { return []; }
+  if (!list.length) return [];
+  return [`   Owner: if one of these AI teammates clearly owns this kind of work, set "owner" to its id; leave it empty when it needs the user personally (a decision, a relationship, their own review) or nobody fits: ${JSON.stringify(list.map((m) => ({ id: m.id, name: m.name, role: m.role, charter: String(m.charter || '').slice(0, 200) })))}`];
+}
 function createTask(section, ref) {
   fs.mkdirSync(TASK_DIR, { recursive: true });
   // One task per piece of work: the same item, the same Slack thread, or a near-identical ask
@@ -419,8 +426,9 @@ function createTask(section, ref) {
     `    "createdAt": "${cmd.startedAt}", "summary": "one line: what is asked, by whom, by when if known",`,
     '    "due": "YYYY-MM-DD or null", "priority": "P0 | P1 | P2",',
     '    "steps": [{"text": "verb-first step, max 12 words", "done": false}],',
-    '    "links": [{"label": "short name", "url": "https://…"}]}',
+    '    "links": [{"label": "short name", "url": "https://…"}], "owner": "AI teammate id, or empty for the user"}',
     '   3 to 8 steps in the order they should be done; the last step is usually closing the loop with the requester. Links: the sources you used.',
+    ...teamHint(),
     '4. Reply with one line: the task title and the number of steps.',
     refText(ref),
   ].join('\n');
