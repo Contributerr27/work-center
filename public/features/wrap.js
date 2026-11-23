@@ -185,7 +185,7 @@
     if (!el || el.hidden) return;
     const d = day();
     const date = viewing || today();
-    el.replaceChildren(h('div', { class: 'wr-box', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Mission summary' },
+    HQ.repaint(el, () => h('div', { class: 'wr-box', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Mission summary' },
       h('header', { class: 'wr-top' },
         h('div', {}, h('h2', { class: 'wr-title' }, term('wrapTitle')), h('div', { class: 'wr-date' }, longDate(date))),
         h('span', { class: 'spacer' }),

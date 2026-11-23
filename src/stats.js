@@ -20,7 +20,7 @@ const LADDER = [
 const SCALE = { today: 1, week: 5, month: 20 };
 
 const TTL = 10 * 60_000;
-const cache = {}; // range -> { at, promise }
+const stores = {}; // range -> disk cache (src/cache.js)
 
 const pad = (n) => String(n).padStart(2, '0');
 const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -191,13 +191,15 @@ async function fetchRemote(config, range) {
 async function collectStats(config, range, desk) {
   if (!RANGES[range]) range = 'today';
   const { from, to, dates } = span(range);
-  let c = cache[range];
-  // A day rollover invalidates "today" even inside the TTL.
-  if (!c || Date.now() - c.at > TTL || c.from !== from.getTime()) {
-    c = cache[range] = { at: Date.now(), from: from.getTime(), promise: fetchRemote(config, range) };
-    c.promise.then((r) => { if (r.errors.length) c.at = Date.now() - TTL + 60_000; }); // retry failures after a minute
-  }
-  const { gh, ji, bugs, errors } = await c.promise;
+  // Disk-cached per range (src/cache.js): served at once, refreshed in the background after TTL,
+  // after a minute when a source failed, and right away when the day (or week/month) rolls over.
+  const store = (stores[range] ||= require('./cache').create(desk.dataDir || require('node:os').tmpdir(), `stats-${range}`, {
+    ttl: TTL, load: () => fetchRemote(config, range).then((r) => ({ ...r, from: span(range).from.getTime() })),
+  }));
+  let c = await store.get();
+  if (c.from !== from.getTime()) c = await store.get(true);
+  else if (c.errors?.length && Date.now() - store.at > 60_000) store.refresh().catch(() => {});
+  const { gh, ji, bugs, errors } = c;
   const dk = deskDays(desk, from);
   const src = { ...(gh?.days || {}), ...(ji || {}), ...dk };
   const days = dates.map((date) => {
@@ -211,14 +213,15 @@ async function collectStats(config, range, desk) {
     range,
     from: from.toISOString(),
     to: to.toISOString(),
-    generatedAt: new Date(c.at).toISOString(),
+    generatedAt: new Date(store.at).toISOString(),
+    refreshing: store.refreshing,
     days,
     totals,
     openBugs: bugs || { total: null, byPriority: {}, byStatus: {}, oldestDays: null, staleCount: null },
     github: { openPRs: gh?.openPRs ?? null, reviewQueue: gh?.reviewQueue ?? null, closedUnmerged: gh?.closedUnmerged ?? null, login: gh?.login || null },
     rank: rankFor(range, totals.score),
     weights: WEIGHTS,
-    errors: [...errors],
+    errors: [...(errors || [])],
   };
 }
 

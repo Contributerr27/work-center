@@ -1,0 +1,20 @@
+/* amem panel (public/features/amem.js). Tokens from app.css. */
+#amem-panel { position: fixed; top: 22px; bottom: 22px; right: 22px; z-index: 35; width: 380px; display: flex; }
+#amem-panel[data-side="left"] { right: auto; left: calc(var(--side-w, 220px) + 28px); }
+#amem-panel[hidden] { display: none; }
+html.panel-amem #amem-panel { inset: 0; width: auto; }
+.am { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 26px; padding: 10px; box-shadow: 0 20px 50px rgba(0, 0, 0, .3); backdrop-filter: var(--glass-blur, none); -webkit-backdrop-filter: var(--glass-blur, none); }
+html.panel-amem .am { border-radius: 30px; box-shadow: none; }
+.am-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 10px; -webkit-app-region: drag; }
+.am-head button { -webkit-app-region: no-drag; }
+.am-head b { font-size: 15px; }
+.am-logo { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--blue-bg, var(--soft)); color: var(--blue); }
+.am-logo svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.am-sides { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; }
+.am-side { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; padding: 3px 9px; border-radius: 7px; cursor: pointer; }
+.am-side.on { background: var(--soft); color: var(--text); font-weight: 600; }
+.am-side:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.am-frame { flex: 1; min-height: 0; width: 100%; border: 0; border-radius: 18px; background: var(--bg); }
+.am-empty { padding: 16px 10px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+[data-theme="vice"] .am { background: #0d0618; border: 3px solid #2b1650; }
+[data-theme="winter"] .am { background: var(--glass, var(--panel)); border-color: var(--glass-line, var(--line)); }

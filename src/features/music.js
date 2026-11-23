@@ -116,8 +116,14 @@ module.exports = {
       tracks: x.tracks?.total ?? x.total_tracks ?? null,
     });
 
+    // Serve the last lists at once and refresh them in the background once they are a minute old.
+    let listing = null;
     async function lists(force) {
       if (!force && Date.now() - cache.at < 60e3) return cache;
+      if (!force && cache.at) { listing ||= fetchLists().catch(() => cache).finally(() => { listing = null; }); return cache; }
+      return (listing ||= fetchLists().finally(() => { listing = null; }));
+    }
+    async function fetchLists() {
       const [recent, mine] = await Promise.all([api('/me/player/recently-played?limit=50'), api('/me/playlists?limit=30').catch(() => ({ items: [] }))]);
       const mineBy = new Map((mine.items || []).filter(Boolean).map((p) => [p.uri, brief(p, 'playlist')]));
       // Each context (playlist, album) once, newest first.

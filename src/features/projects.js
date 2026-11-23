@@ -35,7 +35,6 @@ function setup(ctx) {
   const site = () => ctx.config.jira?.site || '';
   const jobs = makeJobs(ctx);
   let cache = null; // { at, projects: Map key → project, items: Map epic → items[], prs: [], error }
-  let building = null;
   let lastViewed = null;
 
   async function jqlAll(query, fields, max = 600) {
@@ -143,14 +142,18 @@ function setup(ctx) {
     };
   }
 
+  // Disk-cached (src/cache.js): the view opens from the last copy, even after a restart, and
+  // refreshes in the background after cacheMinutes. Maps are stored as entry lists.
+  const store = require('../cache').create(ctx.DATA, 'projects', {
+    ttl: () => cfg().cacheMinutes * 60_000,
+    load: async () => { const c = await build(); return { ...c, projects: [...c.projects], items: [...c.items] }; },
+  });
+  let hydAt = -1;
   async function get(force) {
-    const fresh = cache && Date.now() - cache.at < cfg().cacheMinutes * 60_000;
-    if (cache && fresh && !force) return cache;
-    if (!building) {
-      building = build().then((c) => (cache = c)).catch((e) => { if (cache) cache.error = e.message; else cache = { at: Date.now(), projects: new Map(), items: new Map(), prs: [], error: e.message }; return cache; }).finally(() => { building = null; });
-    }
-    if (cache && !force) return cache; // serve the last copy while it refreshes
-    return building;
+    let v;
+    try { v = await store.get(force); } catch (e) { return { at: Date.now(), projects: new Map(), items: new Map(), prs: [], error: e.message }; }
+    if (hydAt !== store.at || !cache) { cache = { ...v, projects: new Map(v.projects), items: new Map(v.items) }; hydAt = store.at; }
+    return { ...cache, error: store.peek().error || v.error || null };
   }
 
   const briefFile = (key) => path.join(DIR, `brief-${key}.json`);
@@ -173,7 +176,7 @@ function setup(ctx) {
       .sort((a, b) => order[a.category] - order[b.category] || String(a.due || a.nextDue || '9').localeCompare(String(b.due || b.nextDue || '9')) || String(b.updated).localeCompare(String(a.updated)));
     const [from, to] = qRange(q);
     return {
-      quarter: q, current: cur, from: from.toISOString(), to: to.toISOString(), fetchedAt: new Date(c.at).toISOString(), refreshing: !!building, error: c.error,
+      quarter: q, current: cur, from: from.toISOString(), to: to.toISOString(), fetchedAt: new Date(c.at).toISOString(), refreshing: store.refreshing, error: c.error,
       quarters: Object.values(qs).sort((a, b) => a.q.localeCompare(b.q)),
       projects: list.map((p) => ({ ...p, hasBrief: fs.existsSync(briefFile(p.key)) })),
     };

@@ -65,7 +65,7 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
   }
 
   /* ---------- Side panels: AI chat on the right edge, Messages and Music on the left, attached to the window ---------- */
-  const PANEL = { ai: { side: 'right', width: 460 }, phone: { side: 'left', width: 380 }, music: { side: 'left', width: 360 } };
+  const PANEL = { ai: { side: 'right', width: 460 }, phone: { side: 'left', width: 380 }, music: { side: 'left', width: 360 }, amem: { side: 'right', width: 400 } };
   const panels = {};
   const safeOpen = (w) => {
     w.webContents.setWindowOpenHandler(({ url: target }) => { if (EXTERNAL.test(target)) shell.openExternal(target); return { action: 'deny' }; });
@@ -84,8 +84,10 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
     p.setBounds({ x: Math.round(x), y: b.y + inset, width: cfg.width, height: Math.max(420, b.height - inset * 2) });
   }
   function placePanels() { for (const n of Object.keys(panels)) if (panels[n].isVisible()) placePanel(n); }
-  function panel(name, { open, toggle, quote } = {}) {
+  function panel(name, { open, toggle, quote, side } = {}) {
     if (!win || win.isDestroyed() || !url) return false;
+    // The amem panel can sit on either side; the page remembers the choice and passes it along.
+    if (name === 'amem' && (side === 'left' || side === 'right')) PANEL.amem.side = side;
     let p = panels[name];
     const visible = p && !p.isDestroyed() && p.isVisible();
     const want = toggle ? !visible : open !== false;

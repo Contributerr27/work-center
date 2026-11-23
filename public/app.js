@@ -496,6 +496,8 @@ async function load(force) {
     render();
     noteFinished();
     if (D.aiRun?.running || (D.commands || []).some((c) => c.running) || Object.values(D.prdRuns || {}).some((r) => r.running)) setTimeout(() => load(false), 15000);
+    // Cached lists came back while a background refresh runs: pick up the fresh ones when it lands.
+    else if (D.liveRefreshing) setTimeout(() => load(false), 4000);
   } catch (e) {
     toast(`Could not load: ${e.message}`);
   } finally {

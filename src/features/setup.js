@@ -33,10 +33,19 @@ function setup(ctx) {
   let job = readSt().job || null;
   if (job?.running) job = { ...job, running: false, error: 'Interrupted (the app restarted)' };
 
+  // Tool detection takes about 2 seconds: keep the last result on disk and refresh it in the background
+  // every 5 minutes. After a change made here (invalidate), the next scan waits for a fresh one.
+  const store = require('../cache').create(ctx.DATA, 'setup', { ttl: 5 * 60_000, load: () => detect({ dataDir: ctx.DATA, engineId: ctx.engine()?.tool }) });
+  let needFresh = false;
+  const invalidate = () => { needFresh = true; cache = null; };
   async function scan(force) {
-    if (!force && cache && Date.now() - new Date(cache.checkedAt) < 60_000) return cache;
-    cache = await detect({ dataDir: ctx.DATA, engineId: ctx.engine()?.tool, force });
-    return cache;
+    if (force || needFresh) {
+      needFresh = false;
+      cache = await detect({ dataDir: ctx.DATA, engineId: ctx.engine()?.tool, force });
+      store.set(cache);
+      return cache;
+    }
+    return (cache = await store.get());
   }
 
   // Full server definition (with env) read straight from the source tool's file, never from the page.
@@ -179,7 +188,7 @@ function setup(ctx) {
       }
       writeSt({ ...readSt(), job });
       ctx.logRun({ kind: 'setup', title: 'Work Center setup', startedAt: job.startedAt, finishedAt: job.finishedAt, result: job.error ? null : job.steps.map((x) => `${x.label}: ${x.note || x.status}`).join('\n'), error: job.error });
-      cache = null;
+      invalidate();
     })();
     return job;
   }
@@ -212,7 +221,7 @@ function setup(ctx) {
       if (!Array.isArray(share) || share.some((f) => !known.has(f))) throw bad('Unknown instruction file');
     }
     settings.save(clean);
-    cache = null;
+    invalidate();
     return { saved: true };
   });
 
@@ -224,17 +233,17 @@ function setup(ctx) {
     const def = rawServer(from, name);
     if (!def) throw bad(`${name} was not found in ${from}`);
     const r = await addServer(to, name, def);
-    cache = null;
+    invalidate();
     return r;
   });
 
   ctx.route('POST', '/api/setup/amem', async ({ body }) => {
     const { action, tool } = body || {};
-    if (action === 'install') { const r = await installAmem(); cache = null; return r; }
+    if (action === 'install') { const r = await installAmem(); invalidate(); return r; }
     if (action === 'connect') {
       if (!which('amem')) throw bad('Install amem first');
       const r = await addServer(tool, 'amem', amemDef());
-      cache = null;
+      invalidate();
       return r;
     }
     throw bad('Bad action');

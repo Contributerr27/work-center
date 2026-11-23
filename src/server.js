@@ -37,7 +37,7 @@ const PRD_KEY = /^[A-Z][A-Z0-9]+-\d+$/; // any Jira key
 const TOKEN = crypto.randomBytes(16).toString('hex'); // guards POSTs against other local pages
 
 let liveCache = null;
-let liveInflight = null;
+
 let aiRun = { running: false, startedAt: null, error: null, finishedAt: null };
 const prdRuns = {}; // key -> { mode, running, startedAt, finishedAt, error }
 // AI commands, newest first: { id, section, text, pid, log, running, startedAt, finishedAt, result, error }.
@@ -87,7 +87,7 @@ function finishCommand(cmd) {
     } catch { /* task file removed */ }
   }
   saveCommands();
-  liveCache = null;
+  expireLive();
 }
 function stopCommand(id) {
   const cmd = commands.find((c) => c.id === id && c.running);
@@ -105,17 +105,26 @@ function settleCommands() {
 }
 const SECTIONS = { github: 'GitHub', jira: 'Jira', slack: 'Slack', work: 'Work', meet: 'Meetings' };
 
-async function live(force) {
-  if (!force && liveCache && Date.now() - new Date(liveCache.fetchedAt).getTime() < 120_000) return liveCache;
-  liveInflight ||= collectLive(config).then((d) => {
+// GitHub and Jira lists: served from the disk cache at once, refreshed in the background every
+// 2 minutes (and every 5 minutes while nobody looks, see warmLive), so the desk never waits on the CLIs.
+const liveStore = require('./cache').create(DATA, 'live', {
+  ttl: 120_000,
+  load: () => collectLive(config).then((d) => {
+    const prev = liveStore.peek().value;
     // One failed refresh keeps the last good data (marked stale) instead of blanking the panel.
     for (const k of ['github', 'jira']) {
-      if (!d[k].ok && liveCache?.[k]?.data) d[k] = { ok: true, data: liveCache[k].data, stale: d[k].error, staleSince: liveCache[k].staleSince || liveCache.fetchedAt };
+      if (!d[k].ok && prev?.[k]?.data) d[k] = { ok: true, data: prev[k].data, stale: d[k].error, staleSince: prev[k].staleSince || prev.fetchedAt };
     }
-    return (liveCache = d);
-  }).finally(() => (liveInflight = null));
-  return liveInflight;
+    return d;
+  }),
+});
+async function live(force) {
+  liveCache = await liveStore.get(force);
+  return liveCache;
 }
+liveCache = liveStore.peek().value || null;
+const expireLive = () => liveStore.expire();
+setInterval(() => { if (Date.now() - liveStore.at > 5 * 60_000) liveStore.refresh().then((d) => (liveCache = d)).catch(() => {}); }, 60_000).unref();
 
 function briefing() {
   const out = {};
@@ -241,7 +250,7 @@ function runPrd(key, mode) {
     if (!error && !fs.existsSync(out)) error = 'The run finished without writing a summary';
     Object.assign(run, { running: false, error, finishedAt: new Date().toISOString() });
     logRun({ kind: 'prd', title: `PRD ${key}: ${mode === 'start' ? 'QA workflow' : 'summary'}`, startedAt: run.startedAt, finishedAt: run.finishedAt, result: error ? null : (r.text || '').slice(0, 3000), error, cost: r.cost });
-    liveCache = null;
+    expireLive();
   });
   return run;
 }
@@ -596,8 +605,9 @@ ctx.route('POST', '/api/ui/state', ({ body }) => {
   return { ok: true };
 });
 ctx.route('POST', '/api/ui/panel', ({ body }) => {
-  if (!ui.handler || !['ai', 'phone', 'music'].includes(body?.name)) return { handled: false };
-  return { handled: !!ui.handler('panel', { name: body.name, open: body.open, toggle: !!body.toggle, quote: body.quote && typeof body.quote === 'object' ? body.quote : null }) };
+  if (!ui.handler || !['ai', 'phone', 'music', 'amem'].includes(body?.name)) return { handled: false };
+  const side = ['left', 'right'].includes(body.side) ? body.side : undefined;
+  return { handled: !!ui.handler('panel', { name: body.name, open: body.open, toggle: !!body.toggle, side, quote: body.quote && typeof body.quote === 'object' ? body.quote : null }) };
 });
 ctx.route('POST', '/api/ui/main', ({ body }) => {
   if (!ui.handler || !['askAbout', 'openProjectFor', 'createTask', 'openAICenter'].includes(body?.do)) return { handled: false };
@@ -700,6 +710,7 @@ const server = http.createServer(async (req, res) => {
         token: TOKEN,
         config: { repo: config.github?.repo || null, jiraSite: config.jira?.site || null, owner: config.owner?.name || null, setupDone: !!config.setupDoneAt, engine: engine.current(config)?.name || null },
         live: await live(url.searchParams.has('force')),
+        liveRefreshing: liveStore.refreshing,
         ai: briefing(),
         aiRun,
         prd: prdSummaries(),
@@ -715,7 +726,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/merge' && req.method === 'POST') {
       const { repo, number } = await body(req);
       const r = await mergePR(config, repo, Number(number));
-      liveCache = null;
+      expireLive();
       return send(res, 200, r);
     }
     if (url.pathname === '/api/done' && req.method === 'POST') {
@@ -736,7 +747,7 @@ const server = http.createServer(async (req, res) => {
       const { key } = await body(req);
       if (!PRD_KEY.test(key || '')) return send(res, 400, { error: 'Bad PRD key' });
       const r = await moveToEngineering(config, key);
-      liveCache = null;
+      expireLive();
       return send(res, 200, r);
     }
     if (url.pathname === '/api/command' && req.method === 'POST') {

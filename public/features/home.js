@@ -12,10 +12,15 @@
 
   async function fetchAll() {
     const j = (u) => fetch(u).then((r) => r.json()).catch(() => null);
-    [H, stats, setupInfo] = await Promise.all([j('/api/home'), j(`/api/stats?range=${range}`), setupInfo ? setupInfo : j('/api/setup')]);
-    paint();
-    PJ = await j('/api/projects');
-    paint();
+    // Each card paints as soon as its own data lands; the server answers from its cache, so a slow
+    // source only delays its card. Cached numbers that are being refreshed are fetched once more.
+    const isOpen = () => !HQ.overlay(OV).hidden;
+    j('/api/home').then((x) => { H = x; paint(); });
+    const getStats = (again) => j(`/api/stats?range=${range}`).then((x) => { stats = x; paint(); if (again && x?.refreshing) setTimeout(() => isOpen() && getStats(false), 6000); });
+    getStats(true);
+    if (!setupInfo) j('/api/setup').then((x) => { setupInfo = x; paint(); });
+    const getProjects = (again) => j('/api/projects').then((x) => { PJ = x; paint(); if (again && x?.refreshing) setTimeout(() => isOpen() && getProjects(false), 8000); });
+    getProjects(true);
   }
 
   window.openHome = () => {

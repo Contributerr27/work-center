@@ -241,18 +241,34 @@
     ];
   }
 
+  // The box and its header are built once per open; repaints swap only the body and keep the scroll
+  // position, so live feeds don't jump the list and the close button isn't replaced under a click.
+  // A repaint that lands while a mouse button is down waits until it is released.
+  let box = null, bodyEl = null, pressing = false, pending = false, lastView = null;
   function paint() {
     if (!isOpen) return;
+    if (pressing) { pending = true; return; }
     const ov = HQ.overlay(OV);
+    if (!box || !ov.contains(box)) {
+      bodyEl = h('div', { class: 'ap-body' });
+      box = h('div', { class: 'ap-box', role: 'dialog', 'aria-label': 'Autopilot' },
+        h('div', { class: 'ap-head' },
+          h('h2', { class: 'ap-title' }, '🤖 Autopilot'),
+          h('span', { class: 'muted small' }, 'Standing rules the AI runs for you'),
+          h('span', { class: 'spacer' }),
+          h('button', { class: 'ibtn', title: 'Close', 'aria-label': 'Close', onclick: close }, '×')),
+        bodyEl);
+      box.addEventListener('pointerdown', () => { pressing = true; });
+      ov.replaceChildren(box);
+      lastView = null;
+    }
+    const top = box.scrollTop;
     const body = !AP ? [h('div', { class: 'empty' }, 'Loading…')] : view === 'pick' ? pickView() : view === 'edit' ? editView() : listView();
-    ov.replaceChildren(h('div', { class: 'ap-box', role: 'dialog', 'aria-label': 'Autopilot' },
-      h('div', { class: 'ap-head' },
-        h('h2', { class: 'ap-title' }, '🤖 Autopilot'),
-        h('span', { class: 'muted small' }, 'Standing rules the AI runs for you'),
-        h('span', { class: 'spacer' }),
-        h('button', { class: 'ibtn', title: 'Close', 'aria-label': 'Close', onclick: close }, '×')),
-      ...body));
+    bodyEl.replaceChildren(...body);
+    box.scrollTop = lastView === view ? top : 0; // same view: stay put; new view: start at the top
+    lastView = view;
   }
+  window.addEventListener('pointerup', () => { if (!pressing) return; pressing = false; if (pending) { pending = false; setTimeout(paint, 0); } }, true);
 
   /* ---------- Header button + indicator ---------- */
   let btn = null, ind = null;

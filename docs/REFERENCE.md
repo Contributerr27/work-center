@@ -125,6 +125,12 @@ Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when 
   app's Client ID (PKCE login in the browser, no client secret); the refresh token is encrypted with the macOS
   Keychain in `data/music.json`. Playing goes to the Spotify desktop app when it's installed (free or Premium),
   otherwise to your open Spotify device through the Web API (Premium), otherwise the playlist opens in Spotify.
+- **◎ amem:** when the [amem](https://github.com/sslugic/amem) CLI is installed, a sidebar button opens amem's live
+  Activity view (what your AI tools save and recall) in a side panel, on the left or right (switch in its header).
+  Work Center starts `amem ui` in the background if it isn't running. Setting `amem.uiPort` (default 7843).
+- **Speed:** GitHub and Jira lists, stats, projects and tool detection are kept in `data/cache/` and shown at once,
+  even right after a restart, then refreshed in the background (lists every 2 minutes while open, every 5 otherwise).
+  A failed refresh keeps the last good copy, marked stale. **Refresh** still waits for fresh data.
 
 ## Themes
 

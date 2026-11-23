@@ -83,6 +83,17 @@ const HQ = {
     return el;
   },
   closeOverlay(id) { const el = document.getElementById(id); if (el) el.hidden = true; },
+  // Live repaint of an open panel without the jumps: waits while a mouse button is held inside it
+  // (so a click isn't lost to a replaced button) and keeps every scrolled box where it was.
+  repaint(el, build) {
+    if (!el) return;
+    if (HQ._pressIn && el.contains(HQ._pressIn)) { el._pendingRepaint = build; return; }
+    const key = (n) => `${n.tagName}.${n.className}`;
+    const kept = {};
+    for (const n of [el, ...el.querySelectorAll('*')]) if (n.scrollTop > 0) kept[key(n)] ??= n.scrollTop;
+    el.replaceChildren(...[].concat(build()));
+    for (const n of [el, ...el.querySelectorAll('*')]) if (kept[key(n)] != null) n.scrollTop = kept[key(n)];
+  },
   _loaded() { if (D) render(); },
 };
 window.HQ = HQ;
@@ -524,3 +535,10 @@ function initNav() {
     if (i >= 0 && i < keys.length && $(keys[i])) { e.preventDefault(); $(keys[i]).click(); }
   });
 }
+
+// HQ.repaint: remember where a press started; repaints held back by it run on release.
+document.addEventListener('pointerdown', (e) => { HQ._pressIn = e.target; }, true);
+window.addEventListener('pointerup', () => {
+  const t = HQ._pressIn; HQ._pressIn = null;
+  for (const el of document.querySelectorAll('.hq-overlay')) if (el._pendingRepaint && (!t || el.contains(t))) { const b = el._pendingRepaint; el._pendingRepaint = null; setTimeout(() => HQ.repaint(el, b), 0); }
+}, true);
