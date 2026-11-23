@@ -222,21 +222,55 @@ function setup(ctx) {
     const key = url.searchParams.get('key') || '';
     if (!KEY.test(key)) throw bad('Bad key');
     const hit = whyCache.get(key);
-    if (hit && Date.now() - hit.at < 5 * 60_000) return hit.data;
+    if (hit && Date.now() - hit.at < 5 * 60_000) return { ...hit.data, explain: readJson(explainFile(key)), explainJob: jobs.get(`why-${key}`) };
     const c = cache || { projects: new Map(), items: new Map() };
     let item = null, epic = null;
     for (const [ek, list] of c.items) { const f = list.find((i) => i.key === key); if (f) { item = f; epic = ek; break; } }
-    const [raw] = await jqlAll(`key = ${key}`, `summary,status,comment,description,issuelinks,${cfg().flaggedField}`, 1);
-    const comments = (raw?.comment?.comments || []).slice(-3).reverse().map((x) => ({ who: x.author?.displayName || '', at: x.created, text: adfText(x.body).trim().slice(0, 600) })).filter((x) => x.text);
+    const [raw] = await jqlAll(`key = ${key}`, `summary,status,comment,description,issuelinks,assignee,reporter,priority,updated,duedate,${cfg().flaggedField}`, 1);
+    const comments = (raw?.comment?.comments || []).slice(-5).reverse().map((x) => ({ who: x.author?.displayName || '', at: x.created, text: adfText(x.body).trim().slice(0, 900) })).filter((x) => x.text);
     const brief = epic ? readJson(briefFile(epic)) : null;
     const ai = (brief?.blockers || []).filter((b) => b.key === key || String(b.text || '').includes(key)).map((b) => ({ text: b.text, owner: b.owner, url: b.url }));
+    // Every linked issue, both directions, with its relation and status ("is blocked by ABC-1 · In progress").
+    const links = (raw?.issuelinks || []).map((l) => {
+      const o = l.inwardIssue || l.outwardIssue;
+      if (!o) return null;
+      return { key: o.key, title: o.fields?.summary || '', status: o.fields?.status?.name || '', done: o.fields?.status?.statusCategory?.key === 'done',
+        rel: (l.inwardIssue ? l.type?.inward : l.type?.outward) || l.type?.name || 'relates to', blocking: !!l.inwardIssue && /block/i.test(l.type?.inward || ''), url: `${site()}/browse/${o.key}` };
+    }).filter(Boolean);
+    const status = raw?.status?.name || item?.status;
     const data = {
-      key, title: raw?.summary || item?.title, status: raw?.status?.name || item?.status, url: item?.url || `${site()}/browse/${key}`,
-      reasons: item?.why || [], blockedBy: item?.blockedBy || [], overdue: item?.overdue ? item.due : null,
-      ai, comments, description: adfText(raw?.description).trim().slice(0, 500),
+      key, title: raw?.summary || item?.title, status, url: item?.url || `${site()}/browse/${key}`, epic,
+      assignee: raw?.assignee?.displayName || item?.assignee || null, reporter: raw?.reporter?.displayName || null,
+      priority: raw?.priority?.name || null, updated: raw?.updated || null, due: raw?.duedate || item?.due || null,
+      reasons: (item?.why || []).map((r) => r.replace(/^Status (.+)$/, 'Marked "$1" in Jira (status)')),
+      blockedBy: item?.blockedBy || [], overdue: item?.overdue ? item.due : null, links,
+      ai, comments, description: adfText(raw?.description).trim().slice(0, 2500),
     };
     whyCache.set(key, { at: Date.now(), data });
-    return data;
+    return { ...data, explain: readJson(explainFile(key)), explainJob: jobs.get(`why-${key}`) };
+  });
+
+  // ✦ Explain: the AI reads the ticket plus Slack, meetings and linked issues and says in plain words what it
+  // waits on and what would unblock it (read-only). Saved per ticket; the popover polls the job.
+  const explainFile = (key) => path.join(DIR, `why-${key}.json`);
+  ctx.route('GET', '/api/projects/why/explain', ({ url }) => {
+    const key = url.searchParams.get('key') || '';
+    if (!KEY.test(key)) throw bad('Bad key');
+    return { explain: readJson(explainFile(key)), job: jobs.get(`why-${key}`) };
+  });
+  ctx.route('POST', '/api/projects/why/explain', async ({ body }) => {
+    const key = body?.key || '';
+    if (!KEY.test(key)) throw bad('Bad key');
+    const d = whyCache.get(key)?.data;
+    if (!d) throw bad('Open the Why? popover for this item first', 409);
+    const brief = d.epic ? readJson(briefFile(d.epic)) : null;
+    const ticket = { key, title: d.title, status: d.status, assignee: d.assignee, reporter: d.reporter, priority: d.priority, due: d.due, updated: d.updated,
+      jiraSignals: d.reasons, links: d.links, description: d.description, comments: d.comments };
+    const prompt = ctx.fillPrompt(fs.readFileSync(path.join(ctx.ROOT, 'prompts', 'why-blocked.md'), 'utf8'), {
+      KEY: key, TICKET: JSON.stringify(ticket).slice(0, 14_000), EPIC: d.epic || 'none',
+      BRIEF: JSON.stringify(brief?.blockers || []).slice(0, 3000),
+    });
+    return { job: jobs.start(`why-${key}`, { prompt, out: explainFile(key), title: `Why ${key} is blocked`, kind: 'run', small: true, timeoutMs: 6 * 60_000 }) };
   });
 
   ctx.route('POST', '/api/projects/brief', async ({ body }) => {
