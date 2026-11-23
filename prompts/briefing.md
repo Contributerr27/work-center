@@ -53,11 +53,12 @@ work logged since the last working day (amem worklog entries, if amem is availab
 
 ```json
 { "generatedAt": "",
-  "meetings": [ { "title": "", "start": "", "end": "", "url": "", "attendees": 0,
+  "meetings": [ { "title": "", "start": "", "end": "", "url": "", "join": "", "attendees": 0,
       "kind": "standup | sync | 1:1 | external | other",
       "prep": [""],
       "standup": { "done": [""], "next": [""], "blockers": [""] } } ] }
 ```
+`join` is the event's video call link (Google Meet, Zoom, Teams, Webex) from the calendar event, empty if none.
 `standup` only on standup-type meetings; 2–4 short bullets per list.
 If today has no standup, also include the next one within 4 days with its `standup` block.
 Events from a personal (non-work) calendar get `"private": true` and no prep; the app masks their title.

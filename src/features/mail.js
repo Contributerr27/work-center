@@ -37,12 +37,15 @@ function setup(ctx) {
         const text = String(r.text || '[]');
         const items = JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1) || '[]');
         const mail = items.filter((i) => i.source === 'gmail' || i.source === 'email');
-        const invites = items.filter((i) => i.source === 'calendar' || i.kind === 'invite').map((i) => ({ ...i, source: 'calendar', kind: 'invite' }));
+        // Upcoming events with their video links feed the meeting alerts (src/features/meetings.js), not the phone.
+        const events = items.filter((i) => i.kind === 'event');
+        try { fs.writeFileSync(path.join(ctx.DATA, 'upcoming.json'), JSON.stringify({ at: new Date().toISOString(), events }, null, 2)); } catch { /* data dir gone */ }
+        const invites = items.filter((i) => i.kind !== 'event' && (i.source === 'calendar' || i.kind === 'invite')).map((i) => ({ ...i, source: 'calendar', kind: 'invite' }));
         ctx.addPings(mail, { source: 'gmail', mission3: true });
         ctx.addPings(invites, { source: 'calendar', mission3: false });
         write({ lastScanAt: startedAt, lastCost: r.cost, lastFound: items.length });
         scan = { running: false, lastError: null, lastAt: new Date().toISOString() };
-        if (items.length) ctx.logRun({ kind: 'scan', title: 'Email and calendar check', startedAt, finishedAt: scan.lastAt, result: `${mail.length} email${mail.length === 1 ? '' : 's'}, ${invites.length} invite${invites.length === 1 ? '' : 's'}: ${items.slice(0, 5).map((i) => i.summary || i.who).filter(Boolean).join('; ')}`.slice(0, 1500), cost: r.cost });
+        if (items.length) ctx.logRun({ kind: 'scan', title: 'Email and calendar check', startedAt, finishedAt: scan.lastAt, result: `${mail.length} email${mail.length === 1 ? '' : 's'}, ${invites.length} invite${invites.length === 1 ? '' : 's'}, ${events.length} upcoming meeting${events.length === 1 ? '' : 's'}: ${items.slice(0, 5).map((i) => i.summary || i.who).filter(Boolean).join('; ')}`.slice(0, 1500), cost: r.cost });
       } catch (e) {
         scan = { running: false, lastError: e.message.slice(0, 200), lastAt: scan.lastAt };
         ctx.logRun({ kind: 'scan', title: 'Email and calendar check', startedAt, finishedAt: new Date().toISOString(), error: scan.lastError });

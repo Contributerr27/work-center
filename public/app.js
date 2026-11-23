@@ -400,6 +400,8 @@ function renderMeetings() {
       h('div', { class: 't', style: 'flex:1;min-width:0' },
         h('b', {}, x.url ? h('a', { href: x.url }, title) : title), ' ',
         x.kind && !x.private && h('span', { class: `pill ${x.kind === 'standup' ? 'green' : ''}` }, x.kind),
+        // Join the call in the side panel (public/features/meetings.js); shows when the event has a video link.
+        state !== 'past' && x.join && window.joinMeeting ? h('button', { class: `btn sm ${state === 'now' || s - now < 10 * 60_000 ? 'primary' : 'ghost'}`, title: 'Join the call in a side panel', onclick: () => window.joinMeeting({ title, start: x.start, url: x.join }) }, '📹 Join') : null,
         !x.private && itemActions('meet', refs.meeting(x)),
         !x.private && x.prep?.length ? h('ul', {}, x.prep.map((p) => h('li', {}, p))) : null));
   });

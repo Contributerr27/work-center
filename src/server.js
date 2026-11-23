@@ -593,6 +593,8 @@ const ctx = {
   fillPrompt, settings, workDir, notes: userNotes,
   onCommandFinished: (fn) => finishHooks.push(fn), onBackgroundRun: (fn) => historyLog.push(fn), logRun,
   sections: () => SECTIONS,
+  // Ask the app shell (main.js) to do something, e.g. ('meet', { url, title }); false without the shell.
+  uiCall: (kind, data) => (ui.handler ? ui.handler(kind, data) : false),
 };
 // ---------- Window bridge: the page tells the app shell (main.js) to open side panels, run something in
 // the main window, or that the theme changed (dock icon). Without the shell (a browser), nothing is handled
@@ -607,7 +609,7 @@ ctx.route('POST', '/api/ui/state', ({ body }) => {
   return { ok: true };
 });
 ctx.route('POST', '/api/ui/panel', ({ body }) => {
-  if (!ui.handler || !['ai', 'phone', 'music', 'amem'].includes(body?.name)) return { handled: false };
+  if (!ui.handler || !['ai', 'phone', 'music', 'amem', 'meet'].includes(body?.name)) return { handled: false };
   const side = ['left', 'right'].includes(body.side) ? body.side : undefined;
   return { handled: !!ui.handler('panel', { name: body.name, open: body.open, toggle: !!body.toggle, side, quote: body.quote && typeof body.quote === 'object' ? body.quote : null }) };
 });

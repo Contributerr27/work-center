@@ -1,6 +1,6 @@
 // Electron shell: starts the local server and shows it in a native window (macOS, Windows, Linux),
 // plus the menu-bar icon, quick-capture hotkey, launch at login and morning scan (src/tray.js).
-const { app, BrowserWindow, shell, nativeTheme, screen, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, WebContentsView, session, systemPreferences, shell, nativeTheme, screen, nativeImage, dialog } = require('electron');
 const EXTERNAL = /^(https?:|slack:|mailto:)/i; // links the app may hand to the system
 const path = require('node:path');
 const { start, onUi } = require('./src/server');
@@ -65,7 +65,7 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
   }
 
   /* ---------- Side panels: AI chat on the right edge, Messages and Music on the left, attached to the window ---------- */
-  const PANEL = { ai: { side: 'right', width: 460 }, phone: { side: 'left', width: 380 }, music: { side: 'left', width: 360 }, amem: { side: 'right', width: 400 } };
+  const PANEL = { ai: { side: 'right', width: 460 }, phone: { side: 'left', width: 380 }, music: { side: 'left', width: 360 }, amem: { side: 'right', width: 400 }, meet: { side: 'right', width: 640 } };
   const panels = {};
   const safeOpen = (w) => {
     w.webContents.setWindowOpenHandler(({ url: target }) => { if (EXTERNAL.test(target)) shell.openExternal(target); return { action: 'deny' }; });
@@ -114,6 +114,64 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
     }
     return true;
   }
+  /* ---------- Meeting panel: a video call beside the window (src/features/meetings.js) ----------
+     A header page from Work Center (title, Open in browser, Leave) with the call below it in its own view.
+     The call keeps its own saved session (persist:meetings), so a Google or Zoom sign-in is done once.
+     It may use the camera, microphone and screen sharing; only call sites are allowed. */
+  const CALL_SITE = /^https:\/\/([a-z0-9-]+\.)*(meet\.google\.com|google\.com|gstatic\.com|googleusercontent\.com|zoom\.us|zoomgov\.com|teams\.microsoft\.com|teams\.live\.com|microsoft\.com|microsoftonline\.com|live\.com|webex\.com|whereby\.com|around\.co)(\/|$)/i;
+  let meetView = null, meetSession = null;
+  function meetSess() {
+    if (meetSession) return meetSession;
+    meetSession = session.fromPartition('persist:meetings');
+    // Google refuses sign-in in apps that announce themselves as Electron: look like plain Chrome.
+    meetSession.setUserAgent(meetSession.getUserAgent().replace(/\s(Electron|Work ?Center)\/[^\s]+/gi, ''));
+    const okPerm = ['media', 'display-capture', 'fullscreen', 'notifications', 'clipboard-sanitized-write', 'speaker-selection'];
+    meetSession.setPermissionRequestHandler((wc, perm, cb, details) => cb(okPerm.includes(perm) && CALL_SITE.test(details.requestingUrl || wc.getURL())));
+    meetSession.setPermissionCheckHandler((wc, perm, origin) => okPerm.includes(perm) && CALL_SITE.test(`${origin}/`));
+    meetSession.setDisplayMediaRequestHandler((req, cb) => {
+      require('electron').desktopCapturer.getSources({ types: ['screen', 'window'] }).then((s) => cb({ video: s[0] })).catch(() => cb({}));
+    }, { useSystemPicker: true });
+    return meetSession;
+  }
+  function layoutMeet() {
+    const p = panels.meet;
+    if (!p || p.isDestroyed() || !meetView) return;
+    const [w, h] = p.getContentSize();
+    meetView.setBounds({ x: 8, y: 52, width: w - 16, height: h - 60 });
+  }
+  function meet({ url: callUrl, title, close } = {}) {
+    if (!win || win.isDestroyed() || !url) return false;
+    let p = panels.meet;
+    if (close) { if (p && !p.isDestroyed()) p.destroy(); return true; } // leaving ends the call
+    if (!callUrl || !CALL_SITE.test(callUrl)) return false;
+    if (process.platform === 'darwin') for (const m of ['camera', 'microphone']) systemPreferences.askForMediaAccess(m).catch(() => {});
+    if (!p || p.isDestroyed()) {
+      p = panels.meet = new BrowserWindow({
+        parent: win, show: false, frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: true,
+        resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true,
+        width: PANEL.meet.width, height: 700, roundedCorners: true,
+        webPreferences: { contextIsolation: true, nodeIntegration: false },
+      });
+      safeOpen(p);
+      p.on('closed', () => { delete panels.meet; meetView = null; });
+      p.on('resize', layoutMeet);
+    }
+    p.loadURL(`${url}?panel=meet&title=${encodeURIComponent(title || 'Meeting')}&call=${encodeURIComponent(callUrl)}`);
+    if (meetView) { p.contentView.removeChildView(meetView); meetView.webContents.close(); }
+    meetView = new WebContentsView({ webPreferences: { session: meetSess(), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+    meetView.setBorderRadius?.(18);
+    p.contentView.addChildView(meetView);
+    // Sign-in pages and the call stay in the view; other links go to the browser.
+    meetView.webContents.setWindowOpenHandler(({ url: t }) => { if (CALL_SITE.test(t)) meetView.webContents.loadURL(t); else if (EXTERNAL.test(t)) shell.openExternal(t); return { action: 'deny' }; });
+    meetView.webContents.loadURL(callUrl);
+    for (const [n, o] of Object.entries(panels)) if (n !== 'meet' && PANEL[n].side === PANEL.meet.side && !o.isDestroyed() && o.isVisible()) o.hide();
+    placePanel('meet');
+    layoutMeet();
+    p.show();
+    showWindow();
+    return true;
+  }
+
   // Something a panel asks the main window to do (e.g. Reply from Messages → the Slack bar).
   function inMain({ do: what, args }) {
     if (!win || win.isDestroyed()) return false;
@@ -158,7 +216,7 @@ if (!process.env.DAILYHQ_MULTI && !app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     if (app.dock) app.dock.setIcon(ICON); // macOS dock icon when run with `npm start`
     url = await start();
-    onUi((kind, data) => (kind === 'panel' ? panel(data.name, data) : kind === 'main' ? inMain(data) : kind === 'theme' ? (themeIcon(data), true)
+    onUi((kind, data) => (kind === 'panel' ? (data.name === 'meet' && data.open === false ? meet({ close: true }) : panel(data.name, data)) : kind === 'meet' ? meet(data) : kind === 'main' ? inMain(data) : kind === 'theme' ? (themeIcon(data), true)
       : kind === 'pickTheme' ? pickTheme() : false));
     const hidden = osx.launchedAtLogin(); // started at login: stay in the menu bar
     if (hidden && app.dock) app.dock.hide();

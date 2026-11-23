@@ -34,7 +34,11 @@
     "mac": {
       "target": "dir",
       "icon": "build/icon.icns",
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Work Center uses the camera for video calls you join in its meeting panel.",
+        "NSMicrophoneUsageDescription": "Work Center uses the microphone for video calls you join in its meeting panel."
+      }
     },
     "win": {
       "target": "nsis",

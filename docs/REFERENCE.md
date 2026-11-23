@@ -128,6 +128,10 @@ Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when 
 - **◎ amem:** when the [amem](https://github.com/sslugic/amem) CLI is installed, a sidebar button opens amem's live
   Activity view (what your AI tools save and recall) in a side panel, on the left or right (switch in its header).
   Work Center starts `amem ui` in the background if it isn't running. Setting `amem.uiPort` (default 7843).
+- **Meetings:** a few minutes before a meeting (`meetingAlerts.minutesBefore`, default 2) a macOS notification and a
+  card in the window offer **Join here**: the call (Google Meet, Zoom web client, Teams, Webex) opens in a side panel
+  with its own saved sign-in, camera and microphone. **Leave** ends the call; **Open in browser** hands it off. The
+  15-minute email and calendar check also picks up meetings added during the day. `meetingAlerts.enabled` turns it off.
 - **Speed:** GitHub and Jira lists, stats, projects and tool detection are kept in `data/cache/` and shown at once,
   even right after a restart, then refreshed in the background (lists every 2 minutes while open, every 5 otherwise).
   A failed refresh keeps the last good copy, marked stale. **Refresh** still waits for fresh data.

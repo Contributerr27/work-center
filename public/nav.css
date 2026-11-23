@@ -98,7 +98,7 @@ body { padding-left: calc(var(--side-w) + var(--gap) * 2); }
 /* ---------- Panel windows (main.js side panels): only the AI chat or Messages, edge to edge, rounded ---------- */
 html.panel, html.panel body { background: transparent !important; padding: 0 !important; overflow: hidden; height: 100%; }
 html.panel body::before { display: none !important; }
-html.panel body > *:not(#aib-win):not(#phone):not(#music):not(#amem-panel):not(#toast):not(#ctx-menu):not(#why-pop):not(#theme-menu) { display: none !important; }
+html.panel body > *:not(#aib-win):not(#phone):not(#music):not(#amem-panel):not(#meet-head):not(#toast):not(#ctx-menu):not(#why-pop):not(#theme-menu) { display: none !important; }
 html.panel-ai #phone, html.panel-music #phone, html.panel-music #aib-win, html.panel-amem #phone, html.panel-amem #aib-win { display: none !important; }
 html.panel:not(.panel-music) #music { display: none !important; }
 html.panel-ai #aib-win { position: fixed; inset: 0 !important; width: auto !important; height: auto !important; border-radius: var(--r-xl); display: flex !important; }

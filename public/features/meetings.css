@@ -1,0 +1,23 @@
+/* Meeting alerts and the call panel header (public/features/meetings.js). Tokens from app.css. */
+#meet-alerts { position: fixed; top: 64px; right: 22px; z-index: 70; display: flex; flex-direction: column; gap: 8px; width: min(380px, calc(100vw - 44px)); pointer-events: none; }
+.mt-card { pointer-events: auto; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 12px 12px 10px; border-radius: 16px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-left: 4px solid var(--blue); box-shadow: 0 16px 40px rgba(0, 0, 0, .28); animation: mtIn .25s ease-out; }
+.mt-ic { font-size: 22px; grid-row: span 2; text-align: center; }
+.mt-txt { min-width: 0; display: flex; flex-direction: column; }
+.mt-txt b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-acts { display: flex; align-items: center; gap: 6px; }
+.mt-acts .ibtn { margin-left: auto; }
+@keyframes mtIn { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mt-card { animation: none; } }
+[data-theme="vice"] .mt-card { background: rgba(18, 7, 36, .95); border-left-color: #ff2e93; }
+
+/* ?panel=meet: only the header shows; the call is a native view below it (main.js). */
+html.panel-meet body > *:not(#meet-head):not(#toast) { display: none !important; }
+html.panel-meet, html.panel-meet body { background: transparent !important; }
+#meet-head { position: fixed; top: 0; left: 0; right: 0; height: 44px; margin: 0 8px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; color: var(--text); -webkit-app-region: drag; top: 4px; }
+#meet-head button { -webkit-app-region: no-drag; }
+.mt-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red, #e5484d); box-shadow: 0 0 0 3px rgba(229, 72, 77, .2); }
+.mt-title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.mt-clock { font-variant-numeric: tabular-nums; }
+.mt-leave { background: var(--red, #e5484d); color: #fff; border-color: transparent; }
