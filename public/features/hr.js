@@ -121,14 +121,19 @@
         h('div', {}, h('p', {}, f.summary), h('small', { class: 'muted' }, `${f.scoreWhy || ''} · ${fmt(f.generatedAt)}`), spark(d.history)))
         : h('div', {}, running('feedback', 'Reading your work and manager conversations') || h('p', { class: 'muted' }, 'No score yet. It reads your Jira and GitHub work and your conversations with your manager (meeting notes, Slack), then scores seven areas and suggests what to improve.')),
       h('button', { class: 'btn sm', disabled: job('feedback')?.running, onclick: () => start('feedback') }, job('feedback')?.running ? 'Working…' : f ? '↻ Refresh' : '✦ Get feedback'), 'prj-span2'),
-      card('Coach', chatBox(), h('span', { class: 'muted small' }, 'Private to you')),
-      card('Work on next', f?.improvements?.length ? h('ul', { class: 'prj-list' }, f.improvements.slice(0, 4).map((x) => h('li', {}, h('b', {}, x.area), ': ', x.try))) : h('div', { class: 'muted small' }, 'Suggestions show up after the first feedback run.')),
-      card('Where you stand', h('div', { class: 'hr-facts' },
+      // Two stacked columns (not rows), so a short card never leaves a gap beside a tall one.
+      h('div', { class: 'hr-stack' }, card('Coach', chatBox(), h('span', { class: 'muted small' }, 'Private to you')),
+      card('Where you stand', hrFacts(d, o))),
+      h('div', { class: 'hr-stack' }, card('Work on next', f?.improvements?.length ? h('ul', { class: 'prj-list' }, f.improvements.slice(0, 4).map((x) => h('li', {}, h('b', {}, x.area), ': ', x.try))) : h('div', { class: 'muted small' }, 'Suggestions show up after the first feedback run.'))));
+  }
+  function hrFacts(d, o) {
+    return h('div', {},
+      h('div', { class: 'hr-facts' },
         h('div', {}, h('small', { class: 'muted' }, 'Manager'), h('b', {}, d.manager || '—')),
         h('div', {}, h('small', { class: 'muted' }, 'Team'), h('b', {}, o?.me?.team || '—')),
         h('div', {}, h('small', { class: 'muted' }, 'Title'), h('b', {}, o?.me?.title || '—')),
         h('div', {}, h('small', { class: 'muted' }, 'Latest review'), d.reviews?.[0] ? h('button', { class: 'linkbtn', onclick: () => { S.tab = 'review'; S.reviewKey = d.reviews[0].key; S.review = null; load(); } }, d.reviews[0].label) : h('b', {}, '—'))),
-        h('button', { class: 'linkbtn', onclick: () => { S.tab = 'org'; paint(); } }, 'Org chart')));
+      h('button', { class: 'linkbtn', onclick: () => { S.tab = 'org'; paint(); } }, 'Org chart'));
   }
 
   function reviewTab() {

@@ -96,3 +96,17 @@
 [data-theme="vice"] .wr-up-h .key { color: #4fd8ff; }
 [data-theme="vice"] #wrap-offer { background: rgba(22, 10, 44, .92); border-color: #ff2e93; box-shadow: 0 0 22px rgba(255, 46, 147, .4); color: #ffd23f; font-family: "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif; font-style: italic; text-transform: uppercase; letter-spacing: .03em; font-size: 15px; }
 @media (prefers-reduced-motion: reduce) { #wrap-offer { animation: none; } }
+
+/* The AI team's day */
+.wr-team { display: flex; flex-direction: column; gap: 12px; }
+.wr-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.wr-kpi { background: var(--soft); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.wr-kpi b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.wr-kpi small { color: var(--muted); font-size: 11.5px; }
+.wr-kpi.good b { color: var(--green); } .wr-kpi.bad b { color: var(--red); }
+.wr-mems { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.wr-mem { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.wr-mem-h { display: flex; align-items: center; gap: 10px; }
+.wr-mem-n { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wr-mem-s { margin: 0; line-height: 1.45; }
+.wr-auto { padding: 6px 0; }

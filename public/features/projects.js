@@ -109,6 +109,15 @@
   }
 
   /* ---------- painting ---------- */
+  /* ---------- Team ownership: which teammate handles an epic or a story ---------- */
+  const roster = () => window.teamRoster?.() || [];
+  const full = (o) => (o ? roster().find((m) => m.id === o.id) || o : null);
+  // A story: whoever the team says owns it (its reports, posts, watched tickets).
+  const storyOwner = (i) => full(window.teamOwns?.(i.key) || window.teamOwns?.(i.url) || null);
+  // An epic: a teammate that owns it directly, else the one whose work is "my epics this quarter".
+  const epicOwner = (p) => full(window.teamOwns?.(p.key)) || roster().find((m) => m.enabled !== false && (m.queue || []).some((q) => q.kind === 'projects')) || null;
+  const ava = (m, cls = 'xs') => (m ? h('span', { class: `tm-av ${cls} prj-ava`, style: `--c:${m.color || '#6d5efc'}`, title: `${m.name} (${m.role || 'teammate'}) handles this`, onclick: (e) => { e.stopPropagation(); window.openTeam?.(m.id); } }, m.emoji || m.name[0]) : null);
+
   function bar(p, big) {
     const c = p.counts || { total: 0 };
     if (!c.total) return h('div', { class: `prj-bar ${big ? 'big' : ''}` }, h('i', { class: 'none' }));
@@ -118,7 +127,7 @@
   }
   function sideCard(p) {
     return h('button', { class: `prj-it ${P.sel === p.key ? 'sel' : ''}`, onclick: () => { P.focus = null; loadOne(p.key); } },
-      h('div', { class: 'prj-it-t' }, h('b', {}, clean(p.title)), p.blockers ? h('span', { class: 'pill red', title: 'Blocked items' }, `⛔ ${p.blockers}`) : null),
+      h('div', { class: 'prj-it-t' }, h('b', {}, clean(p.title)), p.blockers ? h('span', { class: 'pill red', title: 'Blocked items' }, `⛔ ${p.blockers}`) : null, ava(epicOwner(p))),
       bar(p),
       h('small', { class: 'muted' }, [p.key, p.counts?.total ? `${p.pct}%` : 'no stories', p.category === 'done' ? `done ${fmtDay(p.resolved)}` : (p.due || p.nextDue) ? dueTxt(p.due || p.nextDue) : null, p.mineOpen ? `${p.mineOpen} yours` : null].filter(Boolean).join(' · ')));
   }
@@ -151,6 +160,7 @@
       h('a', { class: 'link prj-key', href: i.url }, i.key),
       h('span', { class: 'prj-tt', title: i.title }, i.title),
       h('span', { class: 'prj-meta' },
+        ava(storyOwner(i)),
         i.assignee ? h('span', { class: `prj-who ${i.mine ? 'me' : ''}`, title: i.assignee }, i.mine ? 'You' : i.assignee.split(' ')[0]) : h('span', { class: 'muted small' }, 'Unassigned'),
         i.category !== 'done' && i.due ? h('span', { class: `pill ${i.overdue ? 'red' : daysTo(i.due) <= 3 ? 'amber' : ''}`, title: i.dueFrom === 'sprint end' ? `${i.sprint} ends ${i.due}` : `Due ${i.due}` }, `${i.dueFrom === 'sprint end' ? '⏱ ' : ''}${fmtDay(i.due)}`) : null,
         i.blocked || i.overdue ? h('button', { class: 'why-badge', 'data-why-key': i.key, 'aria-label': `Why ${i.key} is blocked` }, i.blocked ? '⛔ Why?' : '⏰ Late') : null,
@@ -160,7 +170,7 @@
 
   function work(d) {
     const items = d.items || [];
-    const F = { open: ['Open', (i) => i.category !== 'done'], mine: ['Mine', (i) => i.mine && i.category !== 'done'], blocked: ['Blocked', (i) => i.blocked || i.overdue], done: ['Done', (i) => i.category === 'done'], all: ['All', () => true] };
+    const F = { open: ['Open', (i) => i.category !== 'done'], mine: ['Mine', (i) => i.mine && i.category !== 'done'], team: ['Team', (i) => !!storyOwner(i) && i.category !== 'done'], blocked: ['Blocked', (i) => i.blocked || i.overdue], done: ['Done', (i) => i.category === 'done'], all: ['All', () => true] };
     const shown = items.filter(F[P.filter][1]).sort((a, b) => ({ indeterminate: 0, new: 1, done: 2 }[a.category] - { indeterminate: 0, new: 1, done: 2 }[b.category]) || (b.blocked - a.blocked) || String(a.due || '9').localeCompare(String(b.due || '9')));
     return card(`Stories and tasks`, h('div', {},
       h('div', { class: 'prj-filters' }, Object.entries(F).map(([k, [label, fn]]) => h('button', { class: `hm-rg ${P.filter === k ? 'on' : ''}`, onclick: () => { P.filter = k; paint(); } }, `${label} ${items.filter(fn).length}`))),
@@ -206,6 +216,22 @@
       : h('div', { class: 'muted small' }, 'None of your PRs mention this project’s keys.'));
   }
 
+  // "Team on this epic": the epic's owner and every teammate handling a story, with how many.
+  function teamRow(p, d) {
+    const eo = epicOwner(p);
+    const by = new Map();
+    for (const i of d.items || []) { if (i.category === 'done') continue; const o = storyOwner(i); if (o) by.set(o.id, { m: o, n: (by.get(o.id)?.n || 0) + 1 }); }
+    if (eo && !by.has(eo.id)) by.set(eo.id, { m: eo, n: 0, epic: true });
+    else if (eo) by.get(eo.id).epic = true;
+    if (!by.size) return h('div', { class: 'prj-team muted small' }, 'No teammate on this epic yet. ', h('button', { class: 'linkbtn', onclick: () => window.openTeam?.() }, 'Give it to one'));
+    const note = eo?.report?.working?.find((w) => w.key === p.key)?.status || null;
+    return h('div', { class: 'prj-team' },
+      h('span', { class: 'muted small' }, 'Team on this epic'),
+      [...by.values()].map(({ m, n, epic }) => h('button', { class: 'prj-tm', onclick: () => window.openTeam?.(m.id), title: `${m.name}: ${epic ? 'owns the epic' : ''}${epic && n ? ', ' : ''}${n ? `${n} open item${n === 1 ? '' : 's'}` : ''}` },
+        ava(m, 'sm'), h('b', {}, m.name), h('small', { class: 'muted' }, [epic ? 'owner' : null, n ? `${n} item${n === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ')))),
+      note ? h('span', { class: 'small prj-tnote' }, `${eo.emoji || ''} ${note}`) : null);
+  }
+
   function main() {
     const d = P.detail;
     if (!d || d.loading) return h('div', { class: 'aic-main aic-blank' }, h('div', { class: 'muted' }, P.list && !P.list.length ? 'Pick a quarter with projects.' : 'Loading project…'));
@@ -226,7 +252,8 @@
             d.brief?.health ? h('span', { class: `pill ${{ 'on track': 'green', 'at risk': 'amber', 'off track': 'red' }[d.brief.health] || ''}` }, d.brief.health) : null,
             p.category === 'done' ? h('span', { class: 'muted small' }, `Completed ${fmtDay(p.resolved)}`)
               : h('span', { class: 'muted small' }, [due ? `${p.due ? 'Due' : 'Next deadline'} ${fmtDay(due)} (${dueTxt(due)})` : 'No deadline set', qEnd != null && P.quarter === P.current ? `quarter ends in ${qEnd}d` : null].filter(Boolean).join(' · '))),
-          bar(p, true))),
+          bar(p, true),
+          teamRow(p, d))),
       h('div', { class: 'prj-tiles' },
         tile(p.counts.done, 'done', 'g', go('done')), tile(p.counts.doing, 'in progress', 'b', go('open')), tile(p.counts.todo, 'to do', '', go('open')),
         tile(p.blockers, 'blocked', p.blockers ? 'r' : '', go('blocked')), tile(p.overdue, 'late', p.overdue ? 'r' : '', go('blocked')), tile(p.mineOpen, 'yours open', 'v', go('mine'))),

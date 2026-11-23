@@ -70,6 +70,9 @@
         approval ? h('button', { class: 'btn sm ghost', onclick: () => window.openTeam(s.member.id) }, 'Details') : null));
   };
 
+  // Who is on the team (for owner avatars across the app).
+  window.teamRoster = () => T?.members || [];
+
   /* ---------- Growth & HR → AI team: levels, the path up, Ariadne's reviews, what each one learned ---------- */
   window.teamGrowth = () => {
     if (!T) { load(); return h('div', { class: 'muted' }, 'Loading your team…'); }

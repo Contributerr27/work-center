@@ -168,8 +168,35 @@
     if (!mine) return h('div', { class: 'wr-card' }, head, h('div', { class: 'empty' }, 'No wrap was written that day'));
     return h('div', { class: 'wr-card wr-ai wr-cta' }, head,
       run?.error && h('div', { class: 'blocked' }, `Last try failed: ${run.error}`),
-      h('button', { class: 'btn go wr-big', onclick: write }, '✦ Write my wrap'),
+      h('div', { class: 'wr-auto' }, `✦ It writes itself at ${W.autoAt ? new Date(`2000-01-01T${W.autoAt}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '5:00 PM'} on weekdays. `, h('button', { class: 'linkbtn', onclick: write }, 'Write it now')),
       h('div', { class: 'muted small' }, `Logs today's work to amem, drafts tomorrow's standup and a one-line update per Jira ticket you touched${W.friday ? ', plus your weekly report' : ''}. Nothing is posted.`));
+  }
+
+  /* ---------- the AI team's day ---------- */
+  const Q = { strong: ['green', 'Strong'], good: ['blue', 'Good'], 'needs work': ['amber', 'Needs work'] };
+  function teamBox() {
+    const t = W?.team;
+    if (!t || !t.members?.length) return null;
+    const ai = (W.wrap?.team?.members || []).reduce((a, x) => ((a[String(x.name).toLowerCase()] = x), a), {});
+    const kpi = (v, l, cls = '') => h('div', { class: `wr-kpi ${cls}` }, h('b', {}, v), h('small', {}, l));
+    return h('div', { class: 'wr-card wr-team' },
+      h('div', { class: 'wr-ch' }, h('h4', {}, 'Your AI team today'), h('span', { class: 'spacer' }), W.wrap?.team?.headline ? h('span', { class: 'muted small' }, W.wrap.team.headline) : null),
+      h('div', { class: 'wr-kpis' },
+        kpi(t.output, 'team output'), kpi(`${t.quality}% · ${t.grade}`, 'quality', t.grade === 'A' ? 'good' : t.grade === 'D' ? 'bad' : ''),
+        kpi(t.totals.done, 'items done'), kpi(t.totals.actions, 'actions you approved'), kpi(`${t.totals.okShifts}/${t.totals.shifts}`, 'shifts succeeded'),
+        kpi(`≈$${t.totals.cost}`, 'plan usage')),
+      h('div', { class: 'wr-mems' }, t.members.map((m) => {
+        const a = ai[m.name.toLowerCase()];
+        const q = a && Q[String(a.quality).toLowerCase()];
+        return h('div', { class: 'wr-mem' },
+          h('div', { class: 'wr-mem-h' }, h('span', { class: 'tm-av md', style: `--c:${m.color || '#6d5efc'}` }, m.emoji || m.name[0]),
+            h('span', { class: 'wr-mem-n' }, h('b', {}, m.name, ' ', h('span', { class: `tm-lv l${m.level}` }, `Lv ${m.level}`)), h('small', { class: 'muted' }, m.role)),
+            q ? h('span', { class: `pill ${q[0]}`, title: a.why || '' }, q[1]) : null),
+          h('p', { class: 'wr-mem-s' }, a?.summary || m.highlights[0] || 'Worked through its queue.'),
+          a?.why ? h('div', { class: 'muted small' }, a.why) : null,
+          h('div', { class: 'wr-mem-k small muted' }, [`${m.okShifts}/${m.shifts} shifts`, `${m.done} done`, m.actions ? `${m.actions} actions` : null, m.declined ? `${m.declined} declined` : null, m.failed ? `${m.failed} failed` : null].filter(Boolean).join(' · ')),
+          m.lessons?.length ? h('div', { class: 'small' }, h('b', {}, 'Learned: '), m.lessons.slice(0, 2).join(' · ')) : null);
+      })));
   }
 
   function pastList() {
@@ -192,6 +219,7 @@
         h('button', { class: 'btn sm ghost', title: 'Close (Esc)', onclick: close }, 'Close')),
       !viewing && hero(d),
       !viewing && missionStrip(d),
+      teamBox(),
       !viewing && activity(d),
       wrapBox(),
       pastList()));

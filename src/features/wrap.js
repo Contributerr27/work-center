@@ -42,6 +42,46 @@ module.exports = {
     }
     ctx.addSection('wrap', 'Wrap-up', () => daySummary());
 
+    // The AI team's day, from its own records (data/team): per teammate and in total, with an output score
+    // (how much got done) and a quality grade (shifts that succeeded, suggestions you approved).
+    function teamDay(date = dayKey()) {
+      const TD = path.join(ctx.DATA, 'team');
+      const members = readJson(path.join(TD, 'members.json'), { members: [] }).members || [];
+      if (!members.length) return null;
+      const inbox = readJson(path.join(TD, 'inbox.json'), { items: [] }).items || [];
+      const on = (iso) => iso && dayKey(new Date(iso)) === date;
+      const LV = ['Novice', 'Apprentice', 'Adept', 'Expert', 'Master', 'Legend'];
+      const rows = members.map((m) => {
+        const st = readJson(path.join(TD, 'state', `${m.id}.json`), {});
+        const hist = (st.history || []).filter((x) => on(x.at));
+        const shifts = hist.filter((x) => x.kind !== 'execute');
+        const mine = inbox.filter((i) => i.memberId === m.id);
+        const asked = mine.filter((i) => i.kind === 'approval' && on(i.createdAt));
+        const approved = mine.filter((i) => i.kind === 'approval' && i.status === 'approved' && on(i.resolvedAt));
+        const declined = mine.filter((i) => i.kind === 'approval' && i.status === 'declined' && on(i.resolvedAt));
+        const actions = approved.filter((i) => i.executed).length;
+        const done = hist.reduce((a, x) => a + (x.done || 0), 0);
+        const ok = shifts.filter((x) => x.ok).length;
+        return {
+          id: m.id, name: m.name, emoji: m.emoji, color: m.color, role: m.role, level: m.level || 1, levelTitle: LV[(m.level || 1) - 1],
+          shifts: shifts.length, okShifts: ok, failed: shifts.length - ok, done, asked: asked.length, approved: approved.length, declined: declined.length, actions,
+          cost: Math.round(hist.reduce((a, x) => a + (x.cost || 0), 0) * 100) / 100,
+          highlights: shifts.filter((x) => x.ok && x.summary).slice(0, 4).map((x) => x.summary),
+          lessons: (st.learned || []).filter((l) => on(l.at)).map((l) => l.text),
+        };
+      }).filter((r) => r.shifts || r.actions || r.asked);
+      const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
+      const shifts = sum('shifts'), okShifts = sum('okShifts'), approved = sum('approved'), declined = sum('declined');
+      const okRate = shifts ? okShifts / shifts : 1;
+      const approveRate = approved + declined ? approved / (approved + declined) : 1;
+      const quality = Math.round(100 * (0.5 * okRate + 0.5 * approveRate));
+      const output = sum('done') * 4 + sum('actions') * 6 + okShifts * 2;
+      return {
+        members: rows, totals: { shifts, okShifts, failed: shifts - okShifts, done: sum('done'), actions: sum('actions'), asked: sum('asked'), approved, declined, cost: Math.round(rows.reduce((a, r) => a + r.cost, 0) * 100) / 100 },
+        output, quality, grade: quality >= 90 ? 'A' : quality >= 80 ? 'B' : quality >= 65 ? 'C' : 'D',
+      };
+    }
+
     async function weekStats() {
       try {
         const { collectStats } = require('../stats');
@@ -62,12 +102,14 @@ module.exports = {
         friday
           ? `4. Weekly report (today is Friday). Draft a short weekly report for my manager from this week's stats (JSON: ${JSON.stringify(week).slice(0, 6000)}) and this week's amem worklog entries: a title, 4-7 bullets of outcomes, and 2-3 highlights. No raw stat dumps; lead with outcomes.`
           : '4. No weekly report today (not Friday): set "weekly" to null.',
+        `4b. My AI team. Their day, from Work Center (JSON): ${JSON.stringify(teamDay(date) || {}).slice(0, 9000)}. For each teammate write 1-2 plain sentences on what they achieved (outcomes, not process) and a quality call: "strong", "good" or "needs work", with a short why. Then one line on the team as a whole.`,
         `5. Write this JSON file and nothing else: ${out}`,
         '   {"date": "' + date + '", "generatedAt": "<ISO time>",',
         '    "headline": "one punchy line about the day, max 70 chars",',
         '    "standup": {"done": [""], "next": [""], "blockers": [""]},',
         '    "jiraUpdates": [{"key": "ABC-1", "title": "", "update": "", "url": "https://…/browse/ABC-1"}],',
         '    "weekly": {"title": "", "bullets": [""], "highlights": [""]} or null,',
+        '    "team": {"headline": "one line on the team\'s day", "members": [{"name": "", "summary": "", "quality": "strong | good | needs work", "why": ""}]},',
         '    "worklogSaved": ["the exact worklog lines you saved in step 1"]}',
         '   Validate it is valid JSON.',
         '6. Reply with one line: how many worklog entries you saved and how many Jira updates you suggested.',
@@ -90,12 +132,15 @@ module.exports = {
       const wrap = statusOf(readJson(fileOf(date), null));
       return {
         date, today: dayKey(), friday: new Date(`${date}T12:00:00`).getDay() === 5,
-        wrap, run: pub(cmdById(runId)),
+        wrap, run: pub(cmdById(runId)), team: teamDay(date), autoAt: `${pad(endHour())}:00`,
         past: dates().map((d) => { const w = readJson(fileOf(d), {}); return { date: d, headline: w.headline || '', weekly: !!w.weekly }; }),
       };
     });
 
-    ctx.route('POST', '/api/wrap/run', async () => {
+    // The wrap writes itself at the end of the work day (settings workHours.to, default 17:00), on weekdays,
+    // once per day, unless it was already written or is running.
+    const endHour = () => Math.min(23, Math.max(12, Number(ctx.config.workHours?.to) || 17));
+    async function startWrap() {
       const date = dayKey();
       const runs = readJson(RUNS, {});
       const prev = cmdById(runs[date]);
@@ -108,8 +153,17 @@ module.exports = {
       runs[date] = cmd.id;
       writeJson(RUNS, runs);
       prune();
-      return pub(cmd);
-    });
+      return cmd;
+    }
+    setInterval(() => {
+      const now = new Date(), wd = now.getDay();
+      if (wd === 0 || wd === 6 || now.getHours() < endHour()) return;
+      const date = dayKey();
+      if (fs.existsSync(fileOf(date)) || readJson(RUNS, {})[date]) return;
+      startWrap().then(() => ctx.notify?.('Your day is wrapped up', 'Standup, Jira updates and the team summary are ready in Wrap up.')).catch(() => {});
+    }, 60_000).unref();
+
+    ctx.route('POST', '/api/wrap/run', async () => pub(await startWrap()));
 
     // Post one (key) or every unposted suggested update as a Jira comment. The text comes from the saved
     // wrap file, never from the request.

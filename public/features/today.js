@@ -7,7 +7,23 @@
    Uses page globals: h, $, post, toast, HQ, D, PANEL_MODE, askAbout, closePhone. */
 (() => {
   if (PANEL_MODE) return;
-  let TD = null, filter = 'all', showAll = false, pollT = null;
+  let TD = null, filter = 'all', showAll = false, pollT = null, PJ = null, pjAt = 0;
+  const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { /* no storage */ } return null; };
+
+  /* ---------- Lean Today: the step lists (PRs, Jira, Slack…) sit behind "Show all lists" ---------- */
+  const lean = () => store('today:lists') !== 'on';
+  function applyLean() { document.documentElement.classList.toggle('lean', lean()); }
+  applyLean();
+  // Open the lists (and jump to one) from anywhere: Your part's "Prep", "Show them", "Open task"…
+  window.showLists = (secId) => { store('today:lists', 'on'); applyLean(); paintToggle(); if (secId) setTimeout(() => $(secId)?.scrollIntoView({ behavior: 'smooth' }), 60); };
+  function paintToggle() {
+    let t = $('s-lists');
+    if (!t) { t = h('section', { id: 's-lists' }); $('main').append(t); }
+    const names = FLOW.map((s) => s.name).join(' · ');
+    t.replaceChildren(h('button', { class: 'td-lists-btn', onclick: () => { store('today:lists', lean() ? 'on' : 'off'); applyLean(); paintToggle(); } },
+      lean() ? `Show all lists ▾` : 'Hide the lists ▴', h('small', { class: 'muted' }, lean() ? ` ${names}` : '')));
+    $('main').append(t); // always last
+  }
   const time = (d) => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const until = (d) => { if (!d) return ''; const m = Math.round((new Date(d) - Date.now()) / 60000); return m <= 0 ? 'now' : m < 60 ? `in ${m} min` : m < 1440 ? `at ${time(d)}` : new Date(d).toLocaleDateString([], { weekday: 'short' }) + ` ${time(d)}`; };
   const av = (m, cls = 'sm') => h('span', { class: `tm-av ${cls}`, style: `--c:${m?.color || '#6d5efc'}`, 'aria-hidden': 'true' }, m?.emoji || (m?.you ? '🙂' : m?.name?.[0] || '?'));
@@ -50,11 +66,11 @@
       case 'unblock':
         return [open, h('button', { class: 'btn sm go', title: `Tell ${it.member.name} it can move again: it starts a shift now`, onclick: () => act('/api/team/shift', { id: it.member.id }, `${it.member.name} is back at work`) }, 'Done, wake it')];
       case 'meeting':
-        return [it.join && window.joinMeeting ? h('button', { class: 'btn sm go', onclick: () => window.joinMeeting({ title: it.title, start: it.start, url: it.join }) }, '📹 Join') : open, h('button', { class: 'btn sm ghost', onclick: () => $('s-meet')?.scrollIntoView({ behavior: 'smooth' }) }, 'Prep')];
+        return [it.join && window.joinMeeting ? h('button', { class: 'btn sm go', onclick: () => window.joinMeeting({ title: it.title, start: it.start, url: it.join }) }, '📹 Join') : open, h('button', { class: 'btn sm ghost', onclick: () => document.querySelector('.td-sched')?.scrollIntoView({ behavior: 'smooth' }) }, 'Prep')];
       case 'reviews':
-        return [h('button', { class: 'btn sm', onclick: () => $('s-github')?.scrollIntoView({ behavior: 'smooth' }) }, 'Show them')];
+        return [h('button', { class: 'btn sm', onclick: () => window.showLists('s-github') }, 'Show them')];
       case 'task':
-        return [h('button', { class: 'btn sm', onclick: () => $('s-work')?.scrollIntoView({ behavior: 'smooth' }) }, 'Open task')];
+        return [h('button', { class: 'btn sm', onclick: () => window.showLists('s-work') }, 'Open task')];
       case 'message': case 'invite':
         return [h('button', { class: 'btn sm', onclick: () => ($('btn-phone') || $('phone-btn'))?.click() }, it.kind === 'invite' ? 'Answer' : 'Reply'), open,
           it.pingId ? h('button', { class: 'btn sm ghost', title: 'Handled: remove it', onclick: () => act('/api/pings/dismiss', { ids: [it.pingId] }, null) }, '✓') : null];
@@ -114,11 +130,74 @@
       list.length > 6 ? h('button', { class: 'linkbtn small', onclick: () => { showAll = !showAll; paint(); } }, showAll ? 'Show less' : `Show all ${list.length}`) : null);
   }
 
+  /* ---------- Today's schedule ---------- */
+  function schedule() {
+    const today = new Date().toDateString();
+    const list = (D?.ai?.meetings?.meetings || []).filter((m) => new Date(m.start).toDateString() === today).sort((a, b) => new Date(a.start) - new Date(b.start));
+    const now = Date.now();
+    return h('div', { class: 'td-card td-sched' },
+      h('div', { class: 'td-h' }, h('h3', {}, 'Today’s schedule'), h('span', { class: 'muted small' }, list.length ? `${list.length} meeting${list.length === 1 ? '' : 's'}` : '')),
+      list.length ? h('ol', { class: 'td-meets' }, list.map((m) => {
+        const s = new Date(m.start).getTime(), e = new Date(m.end || m.start).getTime() || s + 30 * 60_000;
+        const st = e < now ? 'past' : s <= now ? 'now' : s - now < 15 * 60_000 ? 'soon' : '';
+        const title = m.private ? 'Personal' : m.title;
+        return h('li', { class: `td-meet ${st}` },
+          h('span', { class: 'td-mt' }, time(m.start)),
+          h('div', { class: 'td-mb' }, h('b', {}, title), m.kind && !m.private ? h('span', { class: 'pill' }, m.kind) : null,
+            !m.private && m.prep?.length ? h('details', {}, h('summary', { class: 'muted small' }, 'Prep'), h('ul', {}, m.prep.map((p) => h('li', { class: 'small' }, p)))) : null),
+          st !== 'past' && m.join && window.joinMeeting ? h('button', { class: `btn sm ${st === 'now' || st === 'soon' ? 'go' : 'ghost'}`, onclick: () => window.joinMeeting({ title, start: m.start, url: m.join }) }, '📹 Join')
+            : m.url && !m.private ? h('a', { class: 'btn sm ghost', href: m.url }, 'Notes') : null);
+      })) : h('div', { class: 'td-empty' }, 'No meetings today. Deep work time.'));
+  }
+
+  /* ---------- Standup: drafted from today's work ---------- */
+  function standupText() {
+    const done = (TD.done || []);
+    // Real outcomes only: finished tasks, cleared items and the team's finished work (not chat prompts).
+    const mine = done.filter((d) => d.who.you && ['task', 'cleared'].includes(d.kind)).slice(0, 3).map((d) => d.text.replace(/^Cleared /, 'Handled '));
+    const team = done.filter((d) => !d.who.you && ['action', 'shift'].includes(d.kind)).slice(0, 5).map((d) => `${d.who.name}: ${d.text}`);
+    const next = (TD.yourPart || []).filter((i) => ['task', 'review', 'approval'].includes(i.kind)).slice(0, 3).map((i) => i.title.replace(/^[^:]+ wants to: /, ''));
+    const blockers = (TD.team || []).flatMap((m) => (m.blockedItems || []).map((b) => `${b.key ? `${b.key}: ` : ''}${b.text}${b.waitingOn ? ` (waiting on ${b.waitingOn})` : ''}`)).slice(0, 3);
+    const line = (x) => `• ${String(x).replace(/\s+/g, ' ').slice(0, 160)}`;
+    return [`Done:`, ...[...mine, ...team].slice(0, 6).map(line), '', 'Next:', ...(next.length ? next : ['Keep going on the current work']).map(line), '', 'Blockers:', ...(blockers.length ? blockers : ['None']).map(line)].join('\n');
+  }
+  function standup() {
+    const text = standupText();
+    return h('div', { class: 'td-card td-stand' },
+      h('div', { class: 'td-h' }, h('h3', {}, 'Standup'), h('span', { class: 'muted small' }, 'drafted from today'), h('span', { class: 'spacer' }),
+        h('button', { class: 'btn sm', onclick: async () => { try { await navigator.clipboard.writeText(text); toast('Standup copied'); } catch (e) { toast('Could not copy'); } } }, 'Copy'),
+        h('button', { class: 'btn sm ghost', title: 'Have the AI write it in your voice', onclick: () => window.askAIBubble?.({ text: `Draft standup:\n${text}`, label: 'Standup' }, 'Turn this into my standup: short, in my voice, about a minute to say out loud.') }, '✦ Polish')),
+      h('pre', { class: 'td-pre' }, text));
+  }
+
+  /* ---------- Watch list: what is at risk ---------- */
+  async function loadProjects() {
+    if (Date.now() - pjAt < 5 * 60_000) return;
+    pjAt = Date.now();
+    try { PJ = await (await fetch('/api/projects')).json(); } catch (e) { PJ = null; }
+    paint();
+  }
+  function watch() {
+    const items = [];
+    for (const w of D?.ext?.health?.workflows || []) if (w.light === 'red') items.push({ ic: '🔴', t: `${w.name}: ${w.label || 'failing'}`, sub: 'Test health', url: w.latest?.url || w.url });
+    for (const p of D?.live?.github?.data?.myPRs || []) if ((p.idleDays || 0) >= 7) items.push({ ic: '⏳', t: `Your PR ${p.repoName || ''}#${p.number} has been quiet ${p.idleDays} days`, sub: p.title, url: p.url });
+    for (const m of TD.team || []) for (const b of (m.blockedItems || []).slice(0, 2)) items.push({ ic: m.emoji || '•', t: `${b.key ? `${b.key}: ` : ''}${b.text}`, sub: `${m.name} waits${b.waitingOn ? ` on ${b.waitingOn}` : ''}`, url: b.url });
+    for (const p of (PJ?.projects || []).filter((x) => x.overdue || x.blockers).sort((a, b) => (b.overdue || 0) - (a.overdue || 0)).slice(0, 3)) items.push({ ic: '🏛️', t: `${p.key} ${p.title}`, sub: [p.overdue ? `${p.overdue} late` : null, p.blockers ? `${p.blockers} blocked` : null].filter(Boolean).join(' · '), url: p.url });
+    return h('div', { class: 'td-card td-watch' },
+      h('div', { class: 'td-h' }, h('h3', {}, 'Watch list'), h('span', { class: 'muted small' }, items.length ? `${items.length} at risk` : '')),
+      items.length ? h('ul', { class: 'td-wl' }, items.slice(0, 10).map((x) => h('li', {},
+        h('span', { class: 'td-wi' }, x.ic), h('div', { class: 'td-wt' }, h('span', {}, x.t), x.sub ? h('small', { class: 'muted' }, x.sub) : null),
+        x.url ? h('a', { class: 'link small', href: x.url }, '↗') : null)))
+        : h('div', { class: 'td-empty' }, 'Nothing at risk right now.'));
+  }
+
   function paint() {
     let sec = $('s-today');
     if (!sec) { sec = h('section', { id: 's-today' }); $('main').prepend(sec); }
     if (!TD) { sec.replaceChildren(h('div', { class: 'td-grid' }, h('div', { class: 'td-card' }, h('div', { class: 'muted' }, 'Gathering your day…')))); return; }
-    HQ.repaint(sec, () => h('div', { class: 'td-grid' }, yourPart(), teamPanel(), donePanel()));
+    HQ.repaint(sec, () => h('div', { class: 'td-grid' }, yourPart(), teamPanel(), schedule(), watch(), donePanel(), standup()));
+    paintToggle();
+    loadProjects();
   }
 
   /* ---------- Steps: tag and fold what a teammate handles ---------- */

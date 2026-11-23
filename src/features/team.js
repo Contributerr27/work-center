@@ -723,7 +723,9 @@ function setup(ctx) {
   function clean(b, prev = {}) {
     const name = String(b.name ?? prev.name ?? '').trim().slice(0, 40);
     if (!name) throw bad('Give them a name');
-    const s = b.schedule ?? prev.schedule ?? { everyMinutes: 120 };
+    const s = { ...(b.schedule ?? prev.schedule ?? { everyMinutes: 120 }) };
+    // Teammates' working hours (settings team.hours, e.g. 8 to 20) when the schedule names none.
+    if (s.everyMinutes && cfg.team?.hours && (s.fromHour == null || s.fromHour === '') && (s.toHour == null || s.toHour === '')) { s.fromHour = cfg.team.hours.from; s.toHour = cfg.team.hours.to; }
     let schedule;
     if (s.at != null) { if (!HHMM.test(String(s.at))) throw bad('Time must be HH:MM'); schedule = { at: String(s.at), days: (s.days || [1, 2, 3, 4, 5]).map(Number) }; }
     else { const e = Number(s.everyMinutes); if (!Number.isInteger(e) || e < 15 || e > 7 * 1440) throw bad('Every must be 15 minutes to 7 days'); schedule = { everyMinutes: e, days: (s.days || [1, 2, 3, 4, 5]).map(Number), ...(Number.isInteger(+s.fromHour) && s.fromHour !== '' && s.fromHour != null ? { fromHour: +s.fromHour } : {}), ...(Number.isInteger(+s.toHour) && s.toHour !== '' && s.toHour != null ? { toHour: +s.toHour } : {}) }; }
@@ -871,7 +873,8 @@ function setup(ctx) {
       const spent = m.score?.spentToday || 0;
       return { id: m.id, name: m.name, emoji: m.emoji, color: m.color, role: m.role, level: m.lv?.level, status: m.status, enabled: m.enabled, running: m.running, step, startedAt: c?.running ? c.startedAt : null,
         nextShiftAt: m.nextShiftAt, summary: m.report?.summary || null, working: m.report?.working?.length || 0, waiting: m.report?.blocked?.length || 0, stuck: m.report?.stuck || null,
-        focus: (m.report?.working || []).slice(0, 2).map((w) => ({ key: w.key, title: w.title, url: w.url })), spentToday: spent, needsYou: m.needsYou, dayDone: m.dayDone };
+        focus: (m.report?.working || []).slice(0, 2).map((w) => ({ key: w.key, title: w.title, url: w.url })), spentToday: spent, needsYou: m.needsYou, dayDone: m.dayDone,
+        blockedItems: (m.report?.blocked || []).slice(0, 6).map((b) => ({ key: b.key || '', text: b.text || '', waitingOn: b.waitingOn || '', url: b.url || '' })) };
     });
 
     // ---- Done today ----
@@ -888,7 +891,7 @@ function setup(ctx) {
       const m = v.members.find((x) => (x.rules || []).includes(r.id));
       done.push({ at: r.lastRunAt, who: m ? { id: m.id, name: m.name, emoji: m.emoji } : { name: 'Autopilot', emoji: '🤖' }, text: `${r.name}: ${r.lastResult}`, kind: 'autopilot' });
     }
-    for (const c of ctx.commands().filter((x) => !x.running && !x.autopilot && !x.team && !String(x.section || '').startsWith('team') && isToday(x.finishedAt) && !x.error)) {
+    for (const c of ctx.commands().filter((x) => !x.running && !x.autopilot && !x.team && !String(x.section || '').startsWith('team') && isToday(x.finishedAt) && !x.error && String(x.text || '').length < 400 && !/^end-of-day wrap/i.test(x.text || ''))) {
       done.push({ at: c.finishedAt, who: { name: 'You', you: true }, text: `${String(c.text || '').slice(0, 80)}${c.result ? ` → ${String(c.result).split('\n')[0].slice(0, 120)}` : ''}`, kind: 'ai', section: c.section });
     }
     const st0 = ctx.readState();

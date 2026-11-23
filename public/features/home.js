@@ -30,7 +30,7 @@
     fetchAll();
   };
   const close = () => { HQ.closeOverlay(OV); document.documentElement.classList.remove('aic-open'); };
-  const goToday = () => { close(); try { const c = current(); const s = FLOW.find((x) => x.id === c); if (s) $(s.sec).scrollIntoView({ behavior: 'smooth' }); } catch (e) { /* flow not ready */ } };
+  const goToday = () => { close(); try { ($('s-today') || $('main'))?.scrollIntoView({ behavior: 'smooth' }); } catch (e) { /* flow not ready */ } };
 
   function card(title, body, extra, cls = '') {
     return h('section', { class: `hm-card ${cls}` }, h('div', { class: 'hm-ch' }, h('h3', {}, title), extra || null), body);
@@ -61,7 +61,7 @@
     const unread = (D.pings?.items || []).filter((p) => !p.dismissed && !p.seen).length;
     const meets = (D.ai?.meetings?.meetings || []).filter((m) => new Date(m.end || m.start) > new Date() && new Date(m.start).toDateString() === new Date().toDateString()).sort((a, b) => new Date(a.start) - new Date(b.start));
     const tile = (n, label, onclick) => h('button', { class: 'hm-tile', onclick }, h('b', {}, n ?? '–'), h('small', {}, label));
-    const toSec = (id) => () => { close(); const s = FLOW.find((x) => x.id === id); if (s) $(s.sec).scrollIntoView({ behavior: 'smooth' }); };
+    const toSec = (id) => () => { close(); const s = FLOW.find((x) => x.id === id); if (!s) return; if (window.showLists) window.showLists(s.sec); else $(s.sec).scrollIntoView({ behavior: 'smooth' }); };
     return card('Today', h('div', {},
       h('div', { class: 'hm-tiles' },
         tile(rr, 'reviews waiting', toSec('github')), tile(mine, 'of your PRs open', toSec('github')),
@@ -167,7 +167,7 @@
     const safe = (fn) => { try { return fn(); } catch (e) { return card('Oops', h('div', { class: 'blocked' }, e.message)); } };
     HQ.repaint(ov, () => h('div', { class: 'hm-box', role: 'dialog', 'aria-label': 'Home' },
       h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('home') : null, 'Home'), h('span', { class: 'st-gap' }),
-        h('button', { class: 'btn ghost', onclick: goToday }, 'Today’s missions'), h('button', { class: 'btn', onclick: close }, 'Close')),
+        h('button', { class: 'btn ghost', onclick: goToday }, 'Go to Today'), h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'hm-scroll' }, h('div', { class: 'hm-wrap' },
         safe(hero),
         h('div', { class: 'hm-grid' }, safe(todayCard), safe(healthCard), window.teamHomeCard ? safe(() => window.teamHomeCard(close)) : null, safe(projectsCard), safe(statsCard), safe(aiCard), safe(heatCard), safe(winsCard), safe(tasksCard))))));
