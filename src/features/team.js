@@ -183,6 +183,7 @@ function setup(ctx) {
       `Your queue right now (JSON, already fetched; read more detail with your tools as needed): ${JSON.stringify(queue).slice(0, 14_000)}`,
       st.report ? `Your last report (${st.lastShiftAt}): ${JSON.stringify(st.report).slice(0, 3000)}` : 'This is your first shift.',
       st.handoffs?.length ? `Handed to you by teammates: ${JSON.stringify(st.handoffs.slice(-10))}` : '',
+      st.events?.length ? `NEW REPLIES on your work since your last shift (start here): ${JSON.stringify(st.events.slice(-12))}\nFor each one decide what follow-up it needs, record it in "decisions" (one per ticket), and act on it within your rules: a bug to file (with repro, expected and actual), a test plan or test case to update, a status to move, a teammate to hand it to, or a reply. Put each outward step in "approvals"; replies are written as ${first}, in ${first}'s voice. If a reply needs nothing, say so in your summary.` : '',
       answered.length ? `${first} answered your questions: ${JSON.stringify(answered.map((a) => ({ question: a.title, answer: a.answer })))}` : '',
       approved.length ? `${first} approved these (they run separately; do not repeat them): ${JSON.stringify(approved.map((a) => a.title))}` : '',
       waiting.length ? `Still waiting on ${first} (do not ask again): ${JSON.stringify(waiting.map((a) => a.title))}` : '',
@@ -212,6 +213,7 @@ function setup(ctx) {
       '  "approvals": [ { "title": "short imperative, e.g. Comment on ABC-12 asking the PM about refunds", "detail": "why, and exactly what will be posted or changed", "action": "the precise action to take once approved", "key": "", "url": "", "urgency": 1 } ],',
       `  "questions": [ { "text": "question for ${first}", "key": "", "url": "" } ],`,
       '  "handoffs": [ { "to": "teammate name", "key": "", "note": "what they should do" } ],',
+      '  "decisions": [ { "key": "Jira key or PR it is about", "action": "none | ask | do", "text": "one line: what you will do (ask = waiting for approval, do = you do it yourself because it is allowed, none = nothing needed and why)" } ],',
       '  "posted": [ { "where": "slack | jira | github | email", "to": "person or channel name", "url": "permalink of what you posted", "text": "what you posted" } ],',
       '  "metrics": { "itemsReviewed": 0, "testsAdded": 0, "testsFixed": 0, "ticketsUpdated": 0 } }',
       'Then reply with the summary line only.',
@@ -236,6 +238,7 @@ function setup(ctx) {
       // Answers and approvals given to it are now consumed by this shift.
       const b = inbox();
       if (why !== 'execute') for (const i of b.items) if (i.memberId === m.id && (i.status === 'answered' || i.status === 'approved') && !i.consumed) i.consumed = cmd.id;
+      if (why !== 'execute' && s.events?.length) { s.lastEvents = s.events; s.events = []; }
       saveInbox(b);
       saveState(m.id, s);
       return cmd;
@@ -302,6 +305,7 @@ function setup(ctx) {
       // What it posted, so a reply to it comes back to this teammate (see onPings below).
       const posted = arr(r.posted, 10).filter((x) => x && (x.url || x.to)).map((x) => ({ where: String(x.where || ''), to: String(x.to || '').slice(0, 80), url: /^https?:/.test(x.url || '') ? x.url : '', text: String(x.text || '').slice(0, 600), at: new Date().toISOString() }));
       if (posted.length) st.posts = [...posted, ...(st.posts || [])].slice(0, 40);
+      for (const d of arr(r.decisions, 20)) if (d?.key && ['none', 'ask', 'do'].includes(d.action)) st.decisions = { ...(st.decisions || {}), [d.key]: { action: d.action, text: String(d.text || '').slice(0, 240), at: new Date().toISOString() } };
       st.history = [{ at: new Date().toISOString(), commandId: c?.id || null, ok, summary: report.summary, done: report.done.length, blocked: report.blocked.length, approvals: added.length, cost, metrics: r.metrics || null }, ...(st.history || [])].slice(0, 200);
       st.status = ok ? 'idle' : 'failed';
       saveState(m.id, st);
@@ -368,6 +372,109 @@ function setup(ctx) {
       feedback: fb, metrics: { itemsReviewed: sum('itemsReviewed'), testsAdded: sum('testsAdded'), testsFixed: sum('testsFixed'), ticketsUpdated: sum('ticketsUpdated') },
     };
   }
+
+  /* ---------- Jira watcher: replies on a teammate's tickets wake that teammate ----------
+     Every 4 minutes (no AI): the tickets each teammate works on, is blocked on, or posted on are checked for
+     comments by other people since the last look. A teammate that is on gets a shift right away with the new
+     comments; one that is off asks in Signals whether it should handle them. */
+  const WATCH = path.join(DIR, 'watch.json');
+  const meEmail = String(cfg.owner?.email || '').toLowerCase();
+  const isMe = (a) => (meEmail && String(a?.emailAddress || '').toLowerCase() === meEmail) || (!meEmail && a?.displayName === owner);
+  function firstJson(text) {
+    const i = text.search(/[[{]/);
+    if (i < 0) throw new Error('no JSON');
+    let depth = 0, str = false, esc = false;
+    for (let j = i; j < text.length; j++) {
+      const ch = text[j];
+      if (str) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') str = false; continue; }
+      if (ch === '"') str = true; else if (ch === '[' || ch === '{') depth++; else if (ch === ']' || ch === '}') { depth--; if (!depth) return JSON.parse(text.slice(i, j + 1)); }
+    }
+    throw new Error('unfinished JSON');
+  }
+  const adf = (n) => (!n ? '' : typeof n === 'string' ? n : n.type === 'text' ? n.text || '' : n.type === 'mention' ? n.attrs?.text || '' : n.type === 'hardBreak' ? '\n'
+    : (n.content || []).map(adf).join('') + (['paragraph', 'heading', 'listItem'].includes(n.type) ? '\n' : ''));
+  const KEY_RE = /\b[A-Z][A-Z0-9]+-\d+\b/g;
+  function watchedKeys() {
+    const byKey = new Map(); // key -> member ids (first = owner of the reaction)
+    for (const m of members()) {
+      const st = stateOf(m.id);
+      const keys = new Set();
+      for (const p of st.posts || []) for (const k of `${p.url} ${p.text}`.match(KEY_RE) || []) if (p.where === 'jira' || /\/browse\//.test(p.url)) keys.add(k);
+      for (const x of [...(st.report?.working || []), ...(st.report?.blocked || [])]) if (x?.key && /^[A-Z][A-Z0-9]+-\d+$/.test(x.key)) keys.add(x.key);
+      for (const i of inbox().items) if (i.memberId === m.id && i.status === 'approved' && i.key && /^[A-Z][A-Z0-9]+-\d+$/.test(i.key)) keys.add(i.key);
+      for (const k of keys) byKey.set(k, [...(byKey.get(k) || []), m.id]);
+    }
+    return byKey;
+  }
+  let watching = false;
+  async function watchJira() {
+    if (watching || !cfg.jira) return;
+    watching = true;
+    try {
+      const w = readJson(WATCH, {});
+      const since = w.lastCheck ? new Date(w.lastCheck) : new Date(Date.now() - 12 * 3600_000); // first look: today's replies
+      const started = new Date();
+      const byKey = watchedKeys();
+      const keys = [...byKey.keys()].slice(0, 80);
+      if (!keys.length) { writeJson(WATCH, { ...w, lastCheck: started.toISOString() }); return; }
+      const mins = Math.max(5, Math.ceil((Date.now() - since) / 60000) + 2);
+      // A key that is not a real issue (a test-case id like R80-13) makes Jira reject the whole query:
+      // on an error, check keys one by one and remember the bad ones.
+      const bad = new Set(w.badKeys || []);
+      let good = keys.filter((k) => !bad.has(k));
+      const q = (ks) => run('twg', ['jira', 'workitem', 'query', `key in (${ks.join(',')}) AND updated >= "-${mins}m"`, '--fields', 'summary', '-n', '80'], { timeout: 90_000 }).then(firstJson);
+      let r;
+      try { r = good.length ? await q(good) : { issues: [] }; } catch {
+        for (const k of good) { try { await run('twg', ['jira', 'workitem', 'query', `key = ${k}`, '--fields', 'summary', '-n', '1'], { timeout: 30_000 }); } catch { bad.add(k); } }
+        good = good.filter((k) => !bad.has(k));
+        r = good.length ? await q(good) : { issues: [] };
+      }
+      w.badKeys = [...bad].slice(-300);
+      const updated = (r.issues || r || []).map((i) => ({ key: i.key, title: i.summary || i.fields?.summary || '', url: i.url }));
+      const found = new Map(); // member id -> events
+      for (const it of updated) {
+        let list = [];
+        try { list = firstJson(await run('twg', ['jira', 'workitem', 'comment', 'query', '--issue-id', it.key, '--order-by=-created', '--first', '10'], { timeout: 60_000 })); } catch { continue; }
+        for (const c of Array.isArray(list) ? list : []) {
+          if (new Date(c.created) <= since || isMe(c.author)) continue;
+          const ownerId = byKey.get(it.key)?.[0];
+          if (!ownerId) continue;
+          const ev = { key: it.key, title: it.title, who: c.author?.displayName || 'Someone', at: c.created, commentId: c.id, url: `${it.url || `${(cfg.jira.site || '').replace(/\/$/, '')}/browse/${it.key}`}?focusedCommentId=${c.id}`, text: adf(c.body).trim().slice(0, 1500) };
+          found.set(ownerId, [...(found.get(ownerId) || []), ev]);
+        }
+      }
+      for (const [id, evs] of found) {
+        const m = members().find((x) => x.id === id);
+        if (!m) continue;
+        const st = stateOf(m.id);
+        const have = new Set((st.events || []).map((e) => e.commentId));
+        const fresh = evs.filter((e) => !have.has(e.commentId)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+        if (!fresh.length) continue;
+        st.events = [...(st.events || []), ...fresh].slice(-20);
+        const people = [...new Set(fresh.map((e) => e.who))].join(', ');
+        const where = [...new Set(fresh.map((e) => e.key))].join(', ');
+        const on = m.enabled && !m.paused && !team().paused;
+        if (on) st.wakeAt = new Date().toISOString(); // the next tick starts a shift
+        saveState(m.id, st);
+        if (on) {
+          ctx.addPings([{ id: `team-ev-${m.id}-${fresh[0].commentId}`, who: `${m.emoji || ''} ${m.name}`.trim(), channel: `${m.role} · on it`, when: new Date().toISOString(), kind: 'fyi', urgency: 1,
+            summary: `${people} replied on ${where}. ${m.name} is looking at it now.`.slice(0, 140), url: fresh[0].url, source: 'team' }], { source: 'team', mission3: false, silent: true });
+        } else {
+          const b = inbox();
+          if (!b.items.some((i) => i.memberId === m.id && i.kind === 'wake' && i.status === 'open')) {
+            const it = { id: newId(), memberId: m.id, kind: 'wake', title: `${people} replied on ${where}: let ${m.name} follow up?`, detail: fresh.map((e) => `${e.who} on ${e.key}: ${e.text.replace(/\s+/g, ' ').slice(0, 220)}`).join('\n'), key: fresh[0].key, url: fresh[0].url, status: 'open', urgency: 2, createdAt: new Date().toISOString() };
+            b.items.unshift(it); saveInbox(b);
+            ctx.addPings([{ id: `team-${it.id}`, teamItem: it.id, teamMember: m.id, who: `${m.emoji || ''} ${m.name}`.trim(), channel: `${m.role} · switched off`, when: it.createdAt, kind: 'approve', urgency: 2,
+              summary: it.title.slice(0, 140), detail: `${it.detail}\n\nApprove to have ${m.name} read the replies and propose what to do next (it asks before posting anything).`, url: it.url, source: 'team' }], { source: 'team', mission3: false });
+          }
+        }
+      }
+      writeJson(WATCH, { lastCheck: started.toISOString(), lastFound: [...found.values()].reduce((a, x) => a + x.length, 0), badKeys: w.badKeys || [] });
+    } catch (e) { console.error(`team watch: ${e.message}`); }
+    finally { watching = false; }
+  }
+  setInterval(() => { if (lead()) watchJira(); }, 4 * 60_000).unref();
+  setTimeout(() => { if (lead()) watchJira(); }, 20_000).unref();
 
   /* ---------- Replies to what a teammate posted ----------
      When the Slack scan finds a new message in a conversation a teammate posted in (same channel or DM,
@@ -510,6 +617,31 @@ function setup(ctx) {
     if (anyone) reviewTeam('daily').catch(() => {});
   }
 
+  /* ---------- What the team says about each ticket (for Signals and the cards) ----------
+     For every ticket a teammate watches: who owns it and what happens next. Status: asking (approvals wait
+     for you), working (a shift is reading it), waiting (owner is off; you can let it follow up), doing,
+     none (nothing needed), or watching. */
+  function keyStatus(list, b) {
+    const out = {};
+    const byKey = watchedKeys();
+    for (const [key, ids] of byKey) {
+      const m = list.find((x) => x.id === ids[0]);
+      if (!m) continue;
+      const st = stateOf(m.id);
+      const asks = b.items.filter((i) => i.memberId === m.id && i.status === 'open' && (i.kind === 'approval' || i.kind === 'wake') && (i.key === key || String(i.title).includes(key) || String(i.detail || '').includes(key)));
+      const pendingEv = (st.events || []).some((e) => e.key === key);
+      const dec = st.decisions?.[key];
+      let status = 'watching', text = `${m.name} is watching ${key}.`;
+      if (asks.some((i) => i.kind === 'approval')) { status = 'asking'; text = `${m.name} wants to: ${asks.filter((i) => i.kind === 'approval').map((i) => i.title).join('; ')}`; }
+      else if (asks.some((i) => i.kind === 'wake')) { status = 'waiting'; text = `${m.name} is off. Let ${m.name} follow up on the replies?`; }
+      else if (m.running && (pendingEv || (st.lastEvents || []).some((e) => e.key === key))) { status = 'working'; text = `${m.name} is reading the replies now.`; }
+      else if (pendingEv) { status = 'working'; text = `${m.name} picks this up on the next shift.`; }
+      else if (dec) { status = dec.action === 'ask' ? 'asking' : dec.action === 'do' ? 'doing' : 'none'; text = dec.action === 'none' ? `No action needed: ${dec.text}` : dec.text; }
+      out[key] = { member: { id: m.id, name: m.name, emoji: m.emoji, color: m.color, autonomy: m.autonomy, enabled: m.enabled }, status, text, asks: asks.map((i) => ({ id: i.id, kind: i.kind, title: i.title })), at: dec?.at || null };
+    }
+    return out;
+  }
+
   /* ---------- View ---------- */
   const rulesById = () => {
     const a = readJson(path.join(ctx.DATA, 'autopilot.json'), { rules: [] });
@@ -535,6 +667,7 @@ function setup(ctx) {
     const open = b.items.filter((i) => i.status === 'open');
     return {
       paused: !!team().paused, members: list, autonomy: AUTONOMY, levels: LEVELS,
+      keys: keyStatus(list, b),
       recruiter: { reviewing: !!reviewing, last: readJson(REVIEW, {}).last || null, eligible: list.filter((m) => m.lv.eligible && !m.lv.pending).map((m) => m.name) },
       totals: {
         working: list.filter((m) => m.running).length, blocked: list.reduce((a, m) => a + (m.report?.blocked?.length || 0), 0),
@@ -641,6 +774,17 @@ function setup(ctx) {
 
   ctx.route('GET', '/api/team', () => view());
   ctx.route('POST', '/api/team/review', async () => ({ review: await reviewTeam('manual') }));
+  ctx.route('POST', '/api/team/followup', async ({ body }) => {
+    const key = String(body?.key || '');
+    const owner = watchedKeys().get(key)?.[0];
+    if (!owner) throw bad('No teammate watches that ticket', 404);
+    const m = find(owner);
+    const b = inbox();
+    for (const i of b.items) if (i.memberId === m.id && i.kind === 'wake' && i.status === 'open') Object.assign(i, { status: 'approved', resolvedAt: new Date().toISOString(), executed: 'shift' });
+    saveInbox(b);
+    try { const cmd = await startShift(m, 'manual'); return { started: cmd.id, member: m.name }; }
+    catch (e) { if (e.status === 409) { const st = stateOf(m.id); st.wakeAt = new Date().toISOString(); saveState(m.id, st); return { queued: true, member: m.name }; } throw e; }
+  });
   ctx.route('GET', '/api/team/queue', async ({ url }) => ({ queue: await resolveQueue(find(url.searchParams.get('id'))) }));
   ctx.route('POST', '/api/team/member', ({ body }) => {
     const list = members();
@@ -702,6 +846,10 @@ function setup(ctx) {
       if (!a) throw bad('Write an answer');
       Object.assign(it, { status: 'answered', answer: a.slice(0, 2000), resolvedAt: new Date().toISOString() });
       const st = stateOf(m.id); st.wakeAt = new Date(Date.now() + 60_000).toISOString(); saveState(m.id, st); // pick it up soon
+    } else if (body.decision === 'approve' && it.kind === 'wake') {
+      Object.assign(it, { status: 'approved', resolvedAt: new Date().toISOString(), executed: 'shift' });
+      saveInbox(b);
+      try { await startShift(m, 'manual'); } catch (e) { if (e.status === 409) { const st = stateOf(m.id); st.wakeAt = new Date().toISOString(); saveState(m.id, st); } else it.execError = e.message; }
     } else if (body.decision === 'approve' && it.kind === 'promotion') {
       const list = members();
       const mm = list.find((x) => x.id === m.id);

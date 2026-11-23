@@ -101,6 +101,7 @@ function renderPhone() {
       h('div', { class: 'ph-text' }, p.summary),
       p.kind === 'invite' && p.answerError && !p.answering && h('div', { class: 'blocked small' }, `Didn't go through: ${p.answerError}`),
       p.kind === 'approve' && p.detail ? h('div', { class: `ph-detail small ${p.reply ? 'ph-draft' : 'muted'}` }, p.detail) : null,
+      p.source !== 'team' && window.teamLineFor ? window.teamLineFor(`${p.summary || ''} ${p.url || ''} ${p.detail || ''}`) : null,
       // A teammate (Team view) asks for the go-ahead on one outward action.
       p.kind === 'approve' ? h('div', { class: 'ph-acts' },
         p.answered ? h('span', { class: `pill ${p.answered === 'declined' ? 'red' : 'green'}` }, p.answered === 'declined' ? '✕ Declined' : '✓ Approved')

@@ -21,6 +21,7 @@
     if (!$(OV)?.hidden && !editing && !hiring) paint(); // never rebuild a form or interview under the cursor
     window.aibRepaint?.();
     window.dispatchEvent(new Event('team:changed'));
+    try { window.renderPhone?.(); } catch (e) { /* phone not ready */ }
   }
   // The AI orb shows how many teammates' questions are waiting.
   function badge() {
@@ -47,6 +48,27 @@
       h('div', { class: 'tm-q-t' }, q.title),
       h('div', { class: 'tm-q-row' }, ta, h('button', { class: 'btn sm go', onclick: send }, 'Answer')));
   });
+
+  /* ---------- Team line on Signals messages: who owns this ticket and what happens next ---------- */
+  const ST_LABEL = { asking: ['Needs your OK', 'amber'], working: ['On it', 'green'], waiting: ['Off', 'grey'], doing: ['Doing it', 'green'], none: ['No action needed', ''], watching: ['Watching', ''] };
+  window.teamLineFor = (text) => {
+    const keys = [...new Set(String(text).match(/\b[A-Z][A-Z0-9]+-\d+\b/g) || [])];
+    const k = keys.find((x) => T?.keys?.[x]);
+    if (!k) return null;
+    const s = T.keys[k];
+    const [label, cls] = ST_LABEL[s.status] || ST_LABEL.watching;
+    const approval = s.asks.find((a) => a.kind === 'approval');
+    return h('div', { class: `tm-line ${s.status}` },
+      h('div', { class: 'tm-line-h' }, avatar(s.member, 'sm'), h('b', {}, s.member.name), h('span', { class: `pill ${cls}` }, label),
+        s.status === 'doing' ? h('span', { class: 'muted small' }, 'allowed without asking') : null),
+      h('div', { class: 'small' }, s.text),
+      h('div', { class: 'tm-line-a' },
+        s.status === 'waiting' || s.status === 'watching' || s.status === 'none'
+          ? h('button', { class: 'btn sm', onclick: async () => { try { const r = await post('/api/team/followup', { key: k }); toast(r.queued ? `${r.member} will look right after the current shift` : `${r.member} is following up on ${k}`); load(); } catch (e) { toast(e.message); } } }, s.status === 'none' ? `Ask ${s.member.name} to look again` : `Let ${s.member.name} follow up`)
+          : null,
+        approval ? h('button', { class: 'btn sm go', onclick: async () => { try { await post('/api/team/resolve', { id: approval.id, decision: 'approve' }); toast(`Approved · ${s.member.name} is doing it now`); load(); } catch (e) { toast(e.message); } } }, 'Approve') : null,
+        approval ? h('button', { class: 'btn sm ghost', onclick: () => window.openTeam(s.member.id) }, 'Details') : null));
+  };
 
   /* ---------- Home card ---------- */
   window.teamHomeCard = (close) => {
@@ -159,9 +181,9 @@
       lv.coaching ? h('div', { class: 'tm-coach small' }, h('span', {}, '🧭'), h('span', {}, h('b', {}, 'Ariadne: '), lv.coaching.text)) : null,
       lv.promotions?.length ? h('div', { class: 'small muted' }, lv.promotions.map((p) => `Promoted to Level ${p.to} · ${p.title} ${ago(p.at)}`).join(' · ')) : null) : null;
     const charter = null;
-    const needs = open.length ? sec(`Needs you (${open.length})`, h('div', { class: 'tm-needs' }, open.map((i) => i.kind === 'approval' || i.kind === 'promotion'
+    const needs = open.length ? sec(`Needs you (${open.length})`, h('div', { class: 'tm-needs' }, open.map((i) => i.kind === 'approval' || i.kind === 'promotion' || i.kind === 'wake'
       ? h('div', { class: `tm-need ${i.kind === 'promotion' ? 'promo' : ''}` }, h('div', {}, h('b', {}, i.kind === 'promotion' ? `🧭 ${i.title}` : i.title), i.detail ? h('div', { class: 'muted small' }, i.detail) : null, keyEl(i.key, i.url)),
-        h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, i.kind === 'promotion' ? `${m.name} was promoted 🎉` : `Approved · ${m.name} is doing it now`) }, i.kind === 'promotion' ? 'Promote' : i.reply ? 'Send' : 'Approve'),
+        h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, i.kind === 'promotion' ? `${m.name} was promoted 🎉` : `Approved · ${m.name} is doing it now`) }, i.kind === 'promotion' ? 'Promote' : i.kind === 'wake' ? 'Let it follow up' : i.reply ? 'Send' : 'Approve'),
           i.reply ? h('button', { class: 'btn sm', onclick: () => { const t = prompt('Edit the reply, then OK to send it as you:', i.detail || ''); if (t && t.trim()) act('/api/team/resolve', { id: i.id, decision: 'approve', text: t.trim() }, 'Sending your reply'); } }, 'Edit') : null,
           h('button', { class: 'btn sm ghost', onclick: () => { const note = prompt('Decline. Why? (optional, they read it next shift)'); if (note !== null) act('/api/team/resolve', { id: i.id, decision: 'decline', note }, 'Declined'); } }, 'Decline')))
       : h('div', { class: 'tm-need q' }, h('div', {}, h('b', {}, `Question: ${i.title}`), keyEl(i.key, i.url)),
