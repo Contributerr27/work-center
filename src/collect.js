@@ -15,11 +15,20 @@ const env = { ...process.env, PATH: `${EXTRA_PATH}${path.delimiter}${process.env
 
 // Demo mode (demo/run.js): no outside tools are called; live data comes from demo/fixtures.js.
 const DEMO = !!process.env.WORK_CENTER_DEMO;
+// Some CLIs (twg) print a JSON error on stdout and exit non-zero; show its message, not "Command failed: <the command>".
+function cliError(out) {
+  try {
+    const e = JSON.parse(String(out || '').trim()).error;
+    if (!e) return '';
+    const fix = e.remediation?.command;
+    return `${e.summary || e.message || e.code}${fix && !String(e.summary).includes(fix) ? ` Run \`${fix}\` to fix it.` : ''}`;
+  } catch { return ''; }
+}
 function run(cmd, args, { timeout = 60_000 } = {}) {
   if (DEMO) return Promise.reject(new Error('Demo mode: outside tools are switched off'));
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { env, timeout, maxBuffer: 64 * 1024 * 1024, cwd: os.homedir() }, (err, stdout, stderr) => {
-      if (err) return reject(new Error(`${cmd} ${args[0] || ''}: ${(stderr || err.message).trim().slice(0, 400)}`));
+      if (err) return reject(new Error(`${cmd} ${args[0] || ''}: ${(cliError(stdout) || stderr || err.message).trim().slice(0, 400)}`));
       resolve(stdout);
     });
   });
