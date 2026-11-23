@@ -28,11 +28,61 @@ function run(cmd, args, { timeout = 60_000 } = {}) {
   if (DEMO) return Promise.reject(new Error('Demo mode: outside tools are switched off'));
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { env, timeout, maxBuffer: 64 * 1024 * 1024, cwd: os.homedir() }, (err, stdout, stderr) => {
-      if (err) return reject(new Error(`${cmd} ${args[0] || ''}: ${(cliError(stdout) || stderr || err.message).trim().slice(0, 400)}`));
+      if (err) {
+        let msg = cliError(stdout) || stderr || err.message;
+        if (cmd === 'twg' && /AUTH_INVALID|session has expired|been revoked/i.test(`${stdout}${stderr}`)) msg = twgLogin.start() || msg;
+        return reject(new Error(`${cmd} ${args[0] || ''}: ${String(msg).trim().slice(0, 400)}`));
+      }
       resolve(stdout);
     });
   });
 }
+
+// An expired twg (Jira) session starts `twg login` in the background (at most once every 10 minutes),
+// so you only have to finish the sign-in in the browser. Its sign-in link is opened unless twg opens
+// one itself, and the link and code are shown on the Jira card. Afterwards the listeners refresh.
+const twgLogin = {
+  state: { running: false, startedAt: null, url: null, code: null, error: null, finishedAt: null, ok: null },
+  listeners: [],
+  onDone(fn) { this.listeners.push(fn); },
+  message() {
+    const s = this.state;
+    if (s.running) return `Jira sign-in expired. Work Center started \`twg login\`: finish it in your browser${s.code ? ` (code ${s.code})` : ''}${s.url ? `: ${s.url}` : ''}. Jira refreshes on its own afterwards.`;
+    return null;
+  },
+  start() {
+    const s = this.state;
+    if (s.running) return this.message();
+    if (s.startedAt && Date.now() - new Date(s.startedAt).getTime() < 10 * 60_000) return s.ok === false ? `Jira sign-in expired and the automatic \`twg login\` didn't finish${s.error ? ` (${s.error})` : ''}. Run \`TWG_TIMEOUT_MS=60000 twg login\` in a terminal.` : null;
+    Object.assign(s, { running: true, startedAt: new Date().toISOString(), url: null, code: null, error: null, finishedAt: null, ok: null });
+    const { spawn } = require('node:child_process');
+    let out = '', opened = false;
+    const child = spawn('twg', ['login'], { env: { ...env, TWG_TIMEOUT_MS: '60000' }, cwd: os.homedir(), stdio: ['ignore', 'pipe', 'pipe'] });
+    const seen = (chunk) => {
+      out += chunk;
+      const url = out.match(/https:\/\/[^\s"'<>)]+/g)?.find((u) => /atlassian|auth|device|activate|verify/i.test(u));
+      const code = out.match(/\b(?:code|user_code)\b[^A-Z0-9]{0,12}([A-Z0-9]{4}-?[A-Z0-9]{4})\b/i)?.[1];
+      if (url) s.url = url;
+      if (code) s.code = code;
+      // Give twg a moment to open the page itself; open it ourselves only if it didn't say so.
+      if (url && !opened) {
+        opened = true;
+        setTimeout(() => { if (!/open(ed|ing)\b[^\n]*browser|browser[^\n]*open/i.test(out)) execFile('open', [url], () => {}); }, 1500);
+      }
+    };
+    child.stdout.on('data', seen);
+    child.stderr.on('data', seen);
+    child.on('error', (e) => { Object.assign(s, { running: false, ok: false, error: e.message, finishedAt: new Date().toISOString() }); });
+    child.on('close', (code) => {
+      let ok = code === 0;
+      try { const j = JSON.parse(out.trim().slice(out.indexOf('{'))); if (j.ok === false) { ok = false; s.error = j.error?.summary || j.error?.message || j.error?.code; } } catch { /* plain text */ }
+      if (!ok && !s.error) s.error = out.trim().split('\n').pop()?.slice(0, 200) || `exit ${code}`;
+      Object.assign(s, { running: false, ok, finishedAt: new Date().toISOString() });
+      if (ok) for (const fn of this.listeners) { try { fn(); } catch { /* ignore */ } }
+    });
+    return this.message();
+  },
+};
 // CLIs sometimes print a status line (e.g. "✓ Complete" after a login refresh) before the JSON:
 // parse from the first { or [ to the matching last } or ].
 function parseJson(out) {
@@ -207,4 +257,4 @@ async function moveToEngineering(config, key) {
   return { moved: true, key, to: cfg.engStatus };
 }
 
-module.exports = { parseJson, collectLive, mergePR, moveToEngineering, APPROVED_QA, run, env, DEMO };
+module.exports = { twgLogin, parseJson, collectLive, mergePR, moveToEngineering, APPROVED_QA, run, env, DEMO };

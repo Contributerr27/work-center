@@ -123,6 +123,8 @@ async function live(force) {
   return liveCache;
 }
 liveCache = liveStore.peek().value || null;
+// After an automatic `twg login` (see collect.js) pull Jira again right away.
+require('./collect').twgLogin.onDone(() => liveStore.refresh().then((d) => (liveCache = d)).catch(() => {}));
 const expireLive = () => liveStore.expire();
 setInterval(() => { if (Date.now() - liveStore.at > 5 * 60_000) liveStore.refresh().then((d) => (liveCache = d)).catch(() => {}); }, 60_000).unref();
 

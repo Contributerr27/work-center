@@ -21,6 +21,7 @@ const SCALE = { today: 1, week: 5, month: 20 };
 
 const TTL = 10 * 60_000;
 const stores = {}; // range -> disk cache (src/cache.js)
+require('./collect').twgLogin.onDone(() => Object.values(stores).forEach((st) => st.expire()));
 
 const pad = (n) => String(n).padStart(2, '0');
 const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

@@ -148,6 +148,7 @@ function setup(ctx) {
     ttl: () => cfg().cacheMinutes * 60_000,
     load: async () => { const c = await build(); return { ...c, projects: [...c.projects], items: [...c.items] }; },
   });
+  require('../collect').twgLogin.onDone(() => store.refresh().catch(() => {}));
   let hydAt = -1;
   async function get(force) {
     let v;
