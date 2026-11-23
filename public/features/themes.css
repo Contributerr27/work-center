@@ -36,7 +36,7 @@
 
 /* full-page views share one surface per theme */
 :root { --glass: var(--panel); --glass-line: var(--line); --glass-blur: none; --view-bg: var(--bg); }
-#home-ov, #prj-ov, #hr-ov, #aic-ov { background: var(--view-bg); }
+#home-ov, #team-ov, #prj-ov, #hr-ov, #aic-ov { background: var(--view-bg); }
 
 /* ==================================================================================== */
 /* Normal: calm and professional. Neutral surfaces, crisp line icons, one blue accent.  */

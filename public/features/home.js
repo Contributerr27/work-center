@@ -165,16 +165,17 @@
     const ov = $(OV);
     if (!ov || ov.hidden || !D) return;
     const safe = (fn) => { try { return fn(); } catch (e) { return card('Oops', h('div', { class: 'blocked' }, e.message)); } };
-    ov.replaceChildren(h('div', { class: 'hm-box', role: 'dialog', 'aria-label': 'Home' },
+    HQ.repaint(ov, () => h('div', { class: 'hm-box', role: 'dialog', 'aria-label': 'Home' },
       h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('home') : null, 'Home'), h('span', { class: 'st-gap' }),
         h('button', { class: 'btn ghost', onclick: goToday }, 'Today’s missions'), h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'hm-scroll' }, h('div', { class: 'hm-wrap' },
         safe(hero),
-        h('div', { class: 'hm-grid' }, safe(todayCard), safe(healthCard), safe(projectsCard), safe(statsCard), safe(aiCard), safe(heatCard), safe(winsCard), safe(tasksCard))))));
+        h('div', { class: 'hm-grid' }, safe(todayCard), safe(healthCard), window.teamHomeCard ? safe(() => window.teamHomeCard(close)) : null, safe(projectsCard), safe(statsCard), safe(aiCard), safe(heatCard), safe(winsCard), safe(tasksCard))))));
   }
 
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $(OV) && !$(OV).hidden) close(); });
   window.addEventListener('hq:changed', () => { if ($(OV) && !$(OV).hidden) fetchAll(); });
+  window.addEventListener('team:changed', () => { if ($(OV) && !$(OV).hidden) paint(); });
   HQ.addButton({ id: 'btn-home', label: '⌂ Home', title: 'Home: streaks, stats, activity and today at a glance', onclick: () => window.openHome() });
   // Move Home to the front of the header buttons.
   const btn = $('btn-home');

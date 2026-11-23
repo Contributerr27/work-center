@@ -254,6 +254,16 @@
     pollChat();
   }
 
+  // Teammates' open questions (public/features/team.js) wait in a strip above the message box until answered.
+  function paintAsks() {
+    const box = $('aib-asks');
+    if (!box) return;
+    if (box.contains(document.activeElement)) return; // don't wipe an answer being typed
+    const cards = window.teamQuestionCards?.() || [];
+    box.hidden = !cards.length;
+    box.replaceChildren(...cards);
+  }
+  window.aibRepaint = () => paintAsks();
   function messages() {
     const mine = B.cmds.filter((c) => B.thread && c.thread === B.thread).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
     if (!mine.length) return [h('div', { class: 'aib-hello' }, h('b', {}, `Hi${D?.config?.owner ? ` ${D.config.owner.split(' ')[0]}` : ''}, what should I do?`),
@@ -303,6 +313,7 @@
     }, B.draft);
     win.replaceChildren(head,
       h('div', { class: 'aib-msgs', id: 'aib-msgs' }),
+      h('div', { class: 'aib-asks', id: 'aib-asks', hidden: true }),
       h('div', { class: 'aib-compose', ondragover: (e) => e.preventDefault(), ondrop: (e) => { e.preventDefault(); addFiles(e.dataTransfer.files); } },
         h('div', { class: 'aib-ctx' }, h('span', { class: 'aib-eye', title: 'The AI sees which view you are on' }, `◉ ${(window.viewContext?.() || {}).label || 'Day'}`),
           B.quote ? h('span', { class: 'chip aib-quote', title: B.quote.text }, h('span', { class: 'chip-t' }, `❝ ${B.quote.text.slice(0, 80)}`), h('button', { class: 'chip-x', 'aria-label': 'Remove', onclick: () => { B.quote = null; paintBubble(); } }, '×')) : null),
@@ -314,6 +325,7 @@
           ta,
           h('button', { class: 'btn go', disabled: B.sending, onclick: send }, B.sending ? '…' : 'Send'))));
     paintMessages();
+    paintAsks();
     requestAnimationFrame(() => ta.focus());
   }
 

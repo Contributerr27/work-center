@@ -44,13 +44,14 @@ const FLOW = [
 // Sidebar places: views on top (full-page overlays), tools below. `view` is the overlay a view opens.
 const NAV = {
   'btn-home': { sec: 'nav-views', ord: 0, view: 'home-ov', name: 'Home', icon: 'home' },
+  'btn-team': { sec: 'nav-views', ord: 1.5, view: 'team-ov', name: 'Team', icon: 'team' },
   'btn-projects': { sec: 'nav-views', ord: 2, view: 'prj-ov', name: 'Projects', icon: 'projects' },
   'btn-hr': { sec: 'nav-views', ord: 3, view: 'hr-ov', name: 'Growth & HR', icon: 'growth' },
   'btn-focus': { sec: 'nav-tools', ord: 10, name: 'Focus', icon: 'focus' },
   'btn-autopilot': { sec: 'nav-tools', ord: 11, name: 'Autopilot', icon: 'autopilot' },
   'btn-wrap': { sec: 'nav-tools', ord: 12, name: 'Wrap up', icon: 'wrap' },
 };
-const VIEWS = ['home-ov', 'prj-ov', 'hr-ov', 'aic-ov'];
+const VIEWS = ['home-ov', 'team-ov', 'prj-ov', 'hr-ov', 'aic-ov'];
 const HQ = {
   _missions: [], _render: [], _buttons: [], _ready: false,
   addMission(def) {
@@ -473,7 +474,7 @@ function initChrome() {
 window.HQ_VIEWCTX = window.HQ_VIEWCTX || {};
 function buildViewContext() {
   const open = VIEWS.find((v) => $(v) && !$(v).hidden) || '';
-  const base = { view: { 'home-ov': 'Home', 'prj-ov': 'Projects', 'hr-ov': 'Growth & HR', 'aic-ov': 'AI Center' }[open] || 'Day' };
+  const base = { view: { 'home-ov': 'Home', 'team-ov': 'Team', 'prj-ov': 'Projects', 'hr-ov': 'Growth & HR', 'aic-ov': 'AI Center' }[open] || 'Day' };
   let extra = {};
   try {
     extra = open ? (window.HQ_VIEWCTX[open]?.() || {}) : { mission: FLOW.find((x) => x.id === current())?.name || null, dataFiles: 'parts/*.json (the desk)' };

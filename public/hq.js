@@ -89,7 +89,7 @@ function renderPhone() {
   el.hidden = false;
   const scan = D.pings?.scan || {};
   const list = phoneQueue.length ? phoneQueue : pings.slice(0, 12);
-  const kindTxt = { reply: 'Reply', 'follow-up': 'Follow up', ask: 'Ask', fyi: 'FYI' };
+  const kindTxt = { reply: 'Reply', 'follow-up': 'Follow up', ask: 'Ask', fyi: 'FYI', approve: 'Needs your OK' };
   el.replaceChildren(h('div', { class: 'ph' },
     h('div', { class: 'ph-top' }, h('span', {}, new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })), h('i', { class: 'notch' }), h('span', {}, '▮▮▮')),
     h('div', { class: 'ph-head' }, h('b', {}, phoneQueue.length ? 'New messages' : 'Messages'),
@@ -100,7 +100,15 @@ function renderPhone() {
       h('div', { class: 'ph-from' }, avatar(p.who), h('span', { class: 't' }, h('b', {}, `${SRC_ICON[p.source] || ''} ${p.who || ''}`), h('small', {}, `${p.channel || ''} · ${p.when ? (p.kind === 'invite' ? new Date(p.when).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : time(p.when)) : ''}`)), h('span', { class: 'pill' }, p.answered ? `✓ ${p.answered}` : kindTxt[p.kind] || 'New')),
       h('div', { class: 'ph-text' }, p.summary),
       p.kind === 'invite' && p.answerError && !p.answering && h('div', { class: 'blocked small' }, `Didn't go through: ${p.answerError}`),
-      p.kind === 'invite' ? h('div', { class: 'ph-acts' },
+      p.kind === 'approve' && p.detail ? h('div', { class: 'ph-detail small muted' }, p.detail) : null,
+      // A teammate (Team view) asks for the go-ahead on one outward action.
+      p.kind === 'approve' ? h('div', { class: 'ph-acts' },
+        p.answered ? h('span', { class: `pill ${p.answered === 'declined' ? 'red' : 'green'}` }, p.answered === 'declined' ? '✕ Declined' : '✓ Approved')
+          : [h('button', { class: 'btn sm go', title: 'Approve: the teammate does exactly this now', onclick: () => resolveTeam(p, 'approve') }, 'Approve'),
+            h('button', { class: 'btn sm ghost', onclick: () => resolveTeam(p, 'decline') }, 'Decline')],
+        p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
+        window.openTeam && h('button', { class: 'btn sm ghost', title: 'Open this teammate', onclick: () => { closePhone(); window.openTeam(p.teamMember); } }, 'Team'))
+      : p.kind === 'invite' ? h('div', { class: 'ph-acts' },
         p.answered ? h('span', { class: `pill ${p.answered === 'declined' ? 'red' : p.answered === 'tentative' ? 'amber' : 'green'}` }, `✓ ${{ accepted: 'Accepted', tentative: 'Maybe', declined: 'Declined' }[p.answered]}`)
           : p.answering ? h('span', { class: 'pill violet pulse' }, `✦ Sending ${p.answering.answer === 'tentative' ? 'maybe' : p.answering.answer.replace(/ed$/, '')}…`)
           : [['accepted', 'Accept', 'go'], ['tentative', 'Maybe', ''], ['declined', 'Decline', 'ghost']].map(([ans, label, cls]) => h('button', { class: `btn sm ${cls}`, onclick: () => answerInvite(p, ans, label) }, label)),
@@ -130,7 +138,18 @@ async function dismissPings(ids) {
     toast(e.message);
   }
 }
-const SRC_ICON = { gmail: '✉', calendar: '📅', slack: '' };
+const SRC_ICON = { gmail: '✉', calendar: '📅', slack: '', team: '' };
+async function resolveTeam(p, decision) {
+  let note = '';
+  if (decision === 'decline') { note = prompt('Decline. Tell them why (optional): it goes into their next shift.') ?? null; if (note === null) return; }
+  try {
+    await post('/api/team/resolve', { id: p.teamItem, decision, note });
+    p.answered = decision === 'approve' ? 'approved' : 'declined';
+    renderPhone();
+    toast(decision === 'approve' ? `Approved · ${p.who} is doing it now` : 'Declined');
+    setTimeout(() => dismissPings([p.id]), 1500);
+  } catch (e) { toast(e.message); }
+}
 async function answerInvite(p, answer, label) {
   if (!confirm(`${label} "${p.summary}"? This answers the invite in your calendar.`)) return;
   try {

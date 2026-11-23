@@ -128,6 +128,12 @@ Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when 
 - **◎ amem:** when the [amem](https://github.com/sslugic/amem) CLI is installed, a sidebar button opens amem's live
   Activity view (what your AI tools save and recall) in a side panel, on the left or right (switch in its header).
   Work Center starts `amem ui` in the background if it isn't running. Setting `amem.uiPort` (default 7843).
+- **👥 Team:** AI teammates, each with a charter, a queue of real work (Jira JQL, GitHub searches, your epics, or
+  work described in words), a playbook, a schedule, an autonomy level (observe, draft and ask, act) and a daily budget.
+  Each shift reports what it works on, what is blocked and what is next. Outward steps it recommends land in **Signals**
+  as Approve / Decline (approving runs exactly that action); its questions wait in the AI chat with an answer box.
+  Teammates hand work to each other, own Autopilot rules, keep notes in amem, and get a weekly scorecard and your
+  👍 / 👎 corrections. Four starters ship switched off (Metis, Odysseus, Perseus, Athena). Data: data/team/.
 - **Meetings:** a few minutes before a meeting (`meetingAlerts.minutesBefore`, default 2) a macOS notification and a
   card in the window offer **Join here**: the call (Google Meet, Zoom web client, Teams, Webex) opens in a side panel
   with its own saved sign-in, camera and microphone. **Leave** ends the call; **Open in browser** hands it off. The

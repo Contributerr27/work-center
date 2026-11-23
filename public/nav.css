@@ -50,8 +50,8 @@ html.side-mini .nv .pbadge { position: absolute; top: 2px; right: 4px; }
 }
 
 /* Full-page views sit beside the menu; the menu stays usable. */
-#home-ov, #prj-ov, #hr-ov, #aic-ov { left: var(--side-w); }
-#home-ov .aic-head, #prj-ov .aic-head, #hr-ov .aic-head, #aic-ov .aic-head { padding-left: 24px; }
+#home-ov, #team-ov, #prj-ov, #hr-ov, #aic-ov { left: var(--side-w); }
+#home-ov .aic-head, #team-ov .aic-head, #prj-ov .aic-head, #hr-ov .aic-head, #aic-ov .aic-head { padding-left: 24px; }
 #top { padding-top: 30px; }
 
 /* Themes */
@@ -78,10 +78,10 @@ html.panel #drag-strip { display: none; }
 :root { --r-xl: 22px; --r-lg: 18px; --r-md: 13px; --gap: 10px; }
 body { padding-left: calc(var(--side-w) + var(--gap) * 2); }
 #side { left: var(--gap); top: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); padding-top: 46px; border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
-#home-ov, #prj-ov, #hr-ov, #aic-ov { left: calc(var(--side-w) + var(--gap) * 2); top: var(--gap); right: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .12); }
+#home-ov, #team-ov, #prj-ov, #hr-ov, #aic-ov { left: calc(var(--side-w) + var(--gap) * 2); top: var(--gap); right: var(--gap); bottom: var(--gap); border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .12); }
 /* One row the size of the frame, so each view's inner list scrolls instead of growing past the clipped edge. */
-#home-ov, #prj-ov, #hr-ov, #aic-ov { grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
-#home-ov .hm-box, #prj-ov .aic-box, #hr-ov .aic-box, #aic-ov .aic-box { height: 100%; min-height: 0; }
+#home-ov, #team-ov, #prj-ov, #hr-ov, #aic-ov { grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
+#home-ov .hm-box, #team-ov .aic-box, #prj-ov .aic-box, #hr-ov .aic-box, #aic-ov .aic-box { height: 100%; min-height: 0; }
 .hm-scroll, .prj-scroll { min-height: 0; }
 #aib-win[data-size="l"] { left: calc(var(--side-w) + var(--gap) * 2 + 24px); }
 .panel, .card, .tcard, .hm-card, .prj-card, .st-card, .ap-card, .wr-card, .sb-card, .hl-card, .hr-team, .hr-ans, .hr-imp { border-radius: var(--r-lg); }
@@ -91,8 +91,8 @@ body { padding-left: calc(var(--side-w) + var(--gap) * 2); }
 .btn.sm { border-radius: 9px; }
 .st-in, .aib-in, input[type="text"], textarea, select { border-radius: 11px; }
 #aib-win { border-radius: var(--r-xl); }
-[data-theme="vice"] #side, [data-theme="vice"] #home-ov, [data-theme="vice"] #prj-ov, [data-theme="vice"] #hr-ov, [data-theme="vice"] #aic-ov { border-color: rgba(255, 63, 164, .22); }
-[data-theme="winter"] #side, [data-theme="winter"] #home-ov, [data-theme="winter"] #prj-ov, [data-theme="winter"] #hr-ov, [data-theme="winter"] #aic-ov { border-color: rgba(255, 255, 255, .7); }
+[data-theme="vice"] #side, [data-theme="vice"] #home-ov, [data-theme="vice"] #team-ov, [data-theme="vice"] #prj-ov, [data-theme="vice"] #hr-ov, [data-theme="vice"] #aic-ov { border-color: rgba(255, 63, 164, .22); }
+[data-theme="winter"] #side, [data-theme="winter"] #home-ov, [data-theme="winter"] #team-ov, [data-theme="winter"] #prj-ov, [data-theme="winter"] #hr-ov, [data-theme="winter"] #aic-ov { border-color: rgba(255, 255, 255, .7); }
 @media (max-width: 900px) { :root { --gap: 6px; } }
 
 /* ---------- Panel windows (main.js side panels): only the AI chat or Messages, edge to edge, rounded ---------- */

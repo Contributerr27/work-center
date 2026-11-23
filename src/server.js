@@ -858,7 +858,7 @@ process.on('exit', () => term.stopTerminal());
 
 function start() {
   return new Promise((resolve, reject) => {
-    const up = () => resolve(`http://127.0.0.1:${server.address().port}`);
+    const up = () => { ctx.port = server.address().port; resolve(`http://127.0.0.1:${server.address().port}`); };
     // If the usual port is taken (another copy is open), fall back to any free port.
     server.once('error', (e) => (e.code === 'EADDRINUSE' ? server.listen(0, '127.0.0.1', up) : reject(e)));
     server.listen(config.port || 4747, '127.0.0.1', up);
