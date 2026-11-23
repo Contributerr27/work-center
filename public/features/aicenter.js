@@ -15,7 +15,7 @@
 
   /* ================= Activity log ================= */
   const A = { day: dayKey(new Date()), month: dayKey(new Date()).slice(0, 7), runs: [], counts: {}, sel: null, detail: null, q: '', timer: null, reply: '',
-    f: { range: store('act:range') || '7d', from: '', to: '', who: 'all', topic: 'all' }, act: null, qT: null };
+    f: { range: 'today', from: '', to: '', who: 'all', topic: 'all' }, act: null, qT: null, fOpen: false };
 
   async function getJson(url) { const r = await fetch(url); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Failed'); return j; }
   // The date range the filters ask for.
@@ -63,6 +63,8 @@
     ov.hidden = false;
     document.documentElement.classList.add('aic-open');
     paint();
+    if (!day) Object.assign(A.f, { range: 'today', who: 'all', topic: 'all' });
+    A.fOpen = false;
     await Promise.all([loadMonth((day || A.day).slice(0, 7)), day ? loadDay(day) : loadActivity()]);
     tick();
   };
@@ -101,12 +103,23 @@
   const avatarOf = (w) => h('span', { class: 'tm-av sm', style: `--c:${w?.color || '#8a8f99'}`, title: w?.name || '' }, w?.emoji || (w?.id === 'you' ? '🙂' : (w?.name || '?')[0]));
   function filters() {
     const F = A.f, act = A.act || {};
-    const set = (patch) => { Object.assign(F, patch); if (patch.range) store('act:range', patch.range); A.sel = null; A.detail = null; loadActivity(); };
+    // Picking something folds the filters back to the one-line summary (custom dates stay open to finish).
+    const set = (patch) => { Object.assign(F, patch); if (patch.range !== 'custom' && !('from' in patch) && !('to' in patch)) A.fOpen = false; A.sel = null; A.detail = null; loadActivity(); };
     const rangeBtn = (id, label) => h('button', { class: `chip ${F.range === id ? 'on' : ''}`, onclick: () => set({ range: id }) }, label);
     const [from, to] = span();
     const whoChips = [{ id: 'all', name: 'Everyone', n: act.total }, ...(act.facets?.who || [])];
     const topicChips = [{ name: 'all', label: 'All topics', n: act.total }, ...(act.facets?.topic || [])];
-    return h('div', { class: 'act-f' },
+    const RANGE = { today: 'Today', '7d': '7 days', '30d': '30 days', day: parseDay(A.day).toLocaleDateString([], { month: 'short', day: 'numeric' }), custom: `${parseDay(from).toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${parseDay(to).toLocaleDateString([], { month: 'short', day: 'numeric' })}` };
+    const whoSel = F.who === 'all' ? null : whoChips.find((w) => w.id === F.who);
+    const search = h('input', { class: 'st-in aic-search', type: 'search', placeholder: 'Search text, results, ticket keys…', value: A.q,
+      oninput: (e) => { A.q = e.target.value; clearTimeout(A.qT); A.qT = setTimeout(() => loadActivity(), 300); } });
+    const summary = h('button', { class: `act-sum ${A.fOpen ? 'open' : ''}`, 'aria-expanded': A.fOpen ? 'true' : 'false', title: A.fOpen ? 'Hide the filters' : 'Change the filters', onclick: () => { A.fOpen = !A.fOpen; paint(); } },
+      h('span', { class: 'chip on' }, RANGE[F.range] || 'Today'),
+      h('span', { class: 'chip on' }, whoSel ? [avatarOf(whoSel), ` ${whoSel.name}`] : 'Everyone'),
+      h('span', { class: 'chip on' }, F.topic === 'all' ? 'All topics' : F.topic),
+      h('span', { class: 'act-caret' }, A.fOpen ? '▴' : '▾ Change'));
+    if (!A.fOpen) return h('div', { class: 'act-f' }, summary, search);
+    return h('div', { class: 'act-f' }, summary,
       h('div', { class: 'act-row' }, rangeBtn('today', 'Today'), rangeBtn('7d', '7 days'), rangeBtn('30d', '30 days'), F.range === 'day' ? rangeBtn('day', parseDay(A.day).toLocaleDateString([], { month: 'short', day: 'numeric' })) : null, rangeBtn('custom', 'Custom')),
       F.range === 'custom' ? h('div', { class: 'act-row' },
         h('input', { type: 'date', value: F.from || from, max: dayKey(new Date()), onchange: (e) => set({ from: e.target.value }) }), h('span', { class: 'muted small' }, 'to'),
@@ -114,8 +127,7 @@
       h('div', { class: 'act-row act-who' }, whoChips.map((w) => h('button', { class: `chip ${F.who === w.id ? 'on' : ''}`, onclick: () => set({ who: w.id }) },
         w.id !== 'all' ? avatarOf(w) : null, w.name, w.n != null ? h('small', {}, ` ${w.n}`) : null))),
       h('div', { class: 'act-row' }, topicChips.map((t) => h('button', { class: `chip ${F.topic === t.name ? 'on' : ''}`, onclick: () => set({ topic: t.name }) }, t.label || t.name, t.n != null ? h('small', {}, ` ${t.n}`) : null))),
-      h('input', { class: 'st-in aic-search', type: 'search', placeholder: 'Search text, results, ticket keys…', value: A.q,
-        oninput: (e) => { A.q = e.target.value; clearTimeout(A.qT); A.qT = setTimeout(() => loadActivity(), 300); } }));
+      search);
   }
   function sidebar() {
     const act = A.act;

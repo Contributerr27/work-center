@@ -79,7 +79,7 @@ function setup(ctx) {
      who:   you (chats and commands), a teammate (its shifts, approved actions, and the Autopilot rules it owns),
             autopilot (rules nobody owns), system (Work Center's own scans and PRD runs).
      topic: from where it ran (Pull requests, Jira, Slack, Work, Meetings, Chat, Team, Scans, PRDs, Setup). */
-  const TOPIC = { github: 'Pull requests', jira: 'Jira', slack: 'Slack', work: 'Work', meet: 'Meetings', hq: 'Chat', health: 'Test health', team: 'Team', project: 'Projects', hr: 'Growth & HR' };
+  const TOPIC = { github: 'Pull requests', jira: 'Jira', slack: 'Slack', work: 'Work', meet: 'Meetings', hq: 'Chat', health: 'Test health', team: 'Team', project: 'Projects', hr: 'Growth & HR', wrap: 'Wrap up', auto: 'Autopilot' };
   const readJsonSafe = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
   function people() {
     const members = readJsonSafe(path.join(ctx.DATA, 'team', 'members.json'), { members: [] }).members || [];
