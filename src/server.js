@@ -456,6 +456,7 @@ try {
 
 // Put items on the phone (and, for messages, in Mission 3). Used by the Slack scan and by features.
 // item: { who, channel, when, kind: reply|follow-up|ask|fyi|invite|alert, urgency 1-3, summary, url, draft, source }
+const pingHooks = []; // fn(newItems) after new pings land (Team: replies to what a teammate posted)
 function addPings(items, { source = 'other', mission3 = source === 'slack' || source === 'gmail', silent = false } = {}) {
   const cur = readPings();
   const dom = config.owner?.slackDomain;
@@ -475,6 +476,7 @@ function addPings(items, { source = 'other', mission3 = source === 'slack' || so
     foundAt: new Date().toISOString(), seen: false,
   }));
   if (!fresh.length) return [];
+  for (const fn of pingHooks) { try { fn(fresh); } catch (e) { console.error(`ping hook: ${e.message}`); } }
   cur.items = [...fresh, ...cur.items].slice(0, 200);
   writePings(cur);
   if (mission3) {
@@ -592,6 +594,7 @@ const ctx = {
   ai: (prompt, opts) => engine.runOnce(config, prompt, opts), engine: () => engine.current(config),
   fillPrompt, settings, workDir, notes: userNotes,
   onCommandFinished: (fn) => finishHooks.push(fn), onBackgroundRun: (fn) => historyLog.push(fn), logRun,
+  onPings: (fn) => pingHooks.push(fn),
   sections: () => SECTIONS,
   // Ask the app shell (main.js) to do something, e.g. ('meet', { url, title }); false without the shell.
   uiCall: (kind, data) => (ui.handler ? ui.handler(kind, data) : false),

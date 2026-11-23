@@ -133,3 +133,7 @@
 .tm-need.promo { background: var(--violet-bg, var(--soft)); }
 .tm-rec { border: 1px solid color-mix(in srgb, #b7791f 40%, var(--line)); background: color-mix(in srgb, #b7791f 7%, var(--panel)); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
 .tm-rec-a { display: flex; gap: 6px; }
+
+.tm-onoff { cursor: pointer; }
+.tm-onoff:hover, .tm-onoff:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.ph-draft { white-space: pre-wrap; background: var(--soft); border-radius: 10px; padding: 8px 10px; color: var(--text); margin-top: 4px; }

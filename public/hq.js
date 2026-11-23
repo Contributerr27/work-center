@@ -100,11 +100,12 @@ function renderPhone() {
       h('div', { class: 'ph-from' }, avatar(p.who), h('span', { class: 't' }, h('b', {}, `${SRC_ICON[p.source] || ''} ${p.who || ''}`), h('small', {}, `${p.channel || ''} · ${p.when ? (p.kind === 'invite' ? new Date(p.when).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : time(p.when)) : ''}`)), h('span', { class: 'pill' }, p.answered ? `✓ ${p.answered}` : kindTxt[p.kind] || 'New')),
       h('div', { class: 'ph-text' }, p.summary),
       p.kind === 'invite' && p.answerError && !p.answering && h('div', { class: 'blocked small' }, `Didn't go through: ${p.answerError}`),
-      p.kind === 'approve' && p.detail ? h('div', { class: 'ph-detail small muted' }, p.detail) : null,
+      p.kind === 'approve' && p.detail ? h('div', { class: `ph-detail small ${p.reply ? 'ph-draft' : 'muted'}` }, p.detail) : null,
       // A teammate (Team view) asks for the go-ahead on one outward action.
       p.kind === 'approve' ? h('div', { class: 'ph-acts' },
         p.answered ? h('span', { class: `pill ${p.answered === 'declined' ? 'red' : 'green'}` }, p.answered === 'declined' ? '✕ Declined' : '✓ Approved')
-          : [h('button', { class: 'btn sm go', title: 'Approve: the teammate does exactly this now', onclick: () => resolveTeam(p, 'approve') }, 'Approve'),
+          : [h('button', { class: 'btn sm go', title: p.reply ? 'Send this reply as you' : 'Approve: the teammate does exactly this now', onclick: () => resolveTeam(p, 'approve') }, p.reply ? 'Send' : 'Approve'),
+            p.reply ? h('button', { class: 'btn sm', title: 'Change the words, then send', onclick: () => { const t = prompt('Edit the reply, then OK to send it as you:', p.detail || ''); if (t && t.trim()) resolveTeam(p, 'approve', t.trim()); } }, 'Edit') : null,
             h('button', { class: 'btn sm ghost', onclick: () => resolveTeam(p, 'decline') }, 'Decline')],
         p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
         window.openTeam && h('button', { class: 'btn sm ghost', title: 'Open this teammate', onclick: () => { closePhone(); window.openTeam(p.teamMember); } }, 'Team'))
@@ -139,14 +140,14 @@ async function dismissPings(ids) {
   }
 }
 const SRC_ICON = { gmail: '✉', calendar: '📅', slack: '', team: '' };
-async function resolveTeam(p, decision) {
+async function resolveTeam(p, decision, text) {
   let note = '';
   if (decision === 'decline') { note = prompt('Decline. Tell them why (optional): it goes into their next shift.') ?? null; if (note === null) return; }
   try {
-    await post('/api/team/resolve', { id: p.teamItem, decision, note });
+    await post('/api/team/resolve', { id: p.teamItem, decision, note, text });
     p.answered = decision === 'approve' ? 'approved' : 'declined';
     renderPhone();
-    toast(decision === 'approve' ? `Approved · ${p.who} is doing it now` : 'Declined');
+    toast(decision === 'approve' ? (p.reply ? `Sending your reply · ${p.who} posts it now` : `Approved · ${p.who} is doing it now`) : 'Declined');
     setTimeout(() => dismissPings([p.id]), 1500);
   } catch (e) { toast(e.message); }
 }

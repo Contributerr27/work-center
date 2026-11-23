@@ -108,7 +108,11 @@
         const [label, cls] = STATUS[m.status] || STATUS.idle;
         return h('button', { class: `tm-card ${sel === m.id ? 'on' : ''} ${m.status}`, onclick: () => { sel = m.id; editing = null; hiring = null; paint(); } },
           h('div', { class: 'tm-card-h' }, avatar(m), h('span', { class: 'tm-cn' }, h('b', {}, m.name, ' ', lvChip(m.lv)), h('small', { class: 'muted' }, `${m.role}${m.lv ? ` · ${m.lv.title}` : ''}`)),
-            h('span', { class: `pill ${cls}` }, m.status === 'working' ? h('span', { class: 'tm-pulse' }) : null, label)),
+            h('span', { class: `pill ${cls} tm-onoff`, role: 'switch', 'aria-checked': m.enabled ? 'true' : 'false', tabindex: 0,
+              title: m.enabled ? `${m.name} works on its schedule. Click to switch off.` : `Click to switch ${m.name} on: it starts working on its schedule.`,
+              onclick: (e) => { e.stopPropagation(); act('/api/team/member/toggle', { id: m.id, enabled: !m.enabled }, m.enabled ? `${m.name} is off` : `${m.name} is on the schedule`); },
+              onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.target.click(); } } },
+              m.status === 'working' ? h('span', { class: 'tm-pulse' }) : null, m.enabled ? label : 'Off · turn on')),
           h('div', { class: 'tm-card-s small' }, m.report?.summary || (m.enabled ? 'Waiting for its first shift' : 'Switched off')),
           h('div', { class: 'tm-card-f small muted' },
             m.lv?.pending ? h('span', { class: 'pill violet' }, '🧭 Promotion suggested') : m.lv?.eligible ? h('span', { class: 'pill violet' }, 'Ready to level up') : null,
@@ -157,7 +161,8 @@
     const charter = null;
     const needs = open.length ? sec(`Needs you (${open.length})`, h('div', { class: 'tm-needs' }, open.map((i) => i.kind === 'approval' || i.kind === 'promotion'
       ? h('div', { class: `tm-need ${i.kind === 'promotion' ? 'promo' : ''}` }, h('div', {}, h('b', {}, i.kind === 'promotion' ? `🧭 ${i.title}` : i.title), i.detail ? h('div', { class: 'muted small' }, i.detail) : null, keyEl(i.key, i.url)),
-        h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, i.kind === 'promotion' ? `${m.name} was promoted 🎉` : `Approved · ${m.name} is doing it now`) }, i.kind === 'promotion' ? 'Promote' : 'Approve'),
+        h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, i.kind === 'promotion' ? `${m.name} was promoted 🎉` : `Approved · ${m.name} is doing it now`) }, i.kind === 'promotion' ? 'Promote' : i.reply ? 'Send' : 'Approve'),
+          i.reply ? h('button', { class: 'btn sm', onclick: () => { const t = prompt('Edit the reply, then OK to send it as you:', i.detail || ''); if (t && t.trim()) act('/api/team/resolve', { id: i.id, decision: 'approve', text: t.trim() }, 'Sending your reply'); } }, 'Edit') : null,
           h('button', { class: 'btn sm ghost', onclick: () => { const note = prompt('Decline. Why? (optional, they read it next shift)'); if (note !== null) act('/api/team/resolve', { id: i.id, decision: 'decline', note }, 'Declined'); } }, 'Decline')))
       : h('div', { class: 'tm-need q' }, h('div', {}, h('b', {}, `Question: ${i.title}`), keyEl(i.key, i.url)),
         h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm', onclick: () => { window.askAIBubble ? window.askAIBubble({ text: `${m.name} asks: ${i.title}`, label: m.name }) : null; } }, 'Answer in chat')))))) : null;
