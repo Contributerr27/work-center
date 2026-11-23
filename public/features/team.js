@@ -13,6 +13,7 @@
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const avatar = (m, size = 'md') => h('span', { class: `tm-av ${size}`, style: `--c:${m.color || '#6d5efc'}`, 'aria-hidden': 'true' }, m.emoji || m.name?.[0] || '?');
   const KEY = /^[A-Z][A-Z0-9]+-\d+$/;
+  const lvChip = (lv) => (lv ? h('span', { class: `tm-lv l${lv.level || 1}`, title: `Level ${lv.level} · ${lv.title}` }, `Lv ${lv.level || 1}`) : null);
 
   async function load() {
     try { T = await (await fetch('/api/team')).json(); } catch (e) { return; }
@@ -64,7 +65,7 @@
       const [label, cls] = STATUS[m.status] || STATUS.idle;
       return h('button', { class: `tm-hrow ${m.status}`, onclick: open(m.id) },
         avatar(m, 'sm'),
-        h('span', { class: 'tm-hn' }, h('b', {}, m.name), h('small', { class: 'muted' }, m.role)),
+        h('span', { class: 'tm-hn' }, h('b', {}, m.name, ' ', m.level ? h('span', { class: `tm-lv l${m.level}` }, `Lv ${m.level}`) : m.lv ? lvChip(m.lv) : null), h('small', { class: 'muted' }, m.role)),
         h('span', { class: `pill ${cls}` }, m.status === 'working' ? h('span', { class: 'tm-pulse' }) : null, label),
         h('span', { class: 'tm-hs muted small' }, (m.report?.summary || m.summary) || (m.status === 'off' ? 'Switched off' : 'No shift yet')),
         m.needsYou ? h('span', { class: 'pill amber' }, `${m.needsYou} need you`) : null,
@@ -92,14 +93,25 @@
   }
 
   function list() {
+    const R = T?.recruiter || {};
+    const recruiter = h('div', { class: 'tm-rec' },
+      h('div', { class: 'tm-card-h' }, h('span', { class: 'tm-av md', style: '--c:#b7791f' }, '🧭'),
+        h('span', { class: 'tm-cn' }, h('b', {}, 'Ariadne'), h('small', { class: 'muted' }, 'Recruiter · hires and promotes'))),
+      h('div', { class: 'small muted' }, R.reviewing ? 'Reviewing the team…' : R.last ? `Last review ${ago(R.last.at)}: ${R.last.summary || ''}` : 'Watches how everyone does and suggests promotions in Signals.'),
+      R.eligible?.length ? h('div', { class: 'small' }, `Ready to level up: ${R.eligible.join(', ')}`) : null,
+      h('div', { class: 'tm-rec-a' },
+        h('button', { class: 'btn sm', disabled: !!R.reviewing, onclick: () => act('/api/team/review', {}, 'Ariadne is reviewing the team (about a minute)') }, R.reviewing ? 'Reviewing…' : 'Review the team'),
+        h('button', { class: 'btn sm ghost', onclick: () => { editing = null; hiring = newHire(); paint(); } }, 'Hire')));
     return h('div', { class: 'tm-list' },
+      recruiter,
       (T?.members || []).map((m) => {
         const [label, cls] = STATUS[m.status] || STATUS.idle;
         return h('button', { class: `tm-card ${sel === m.id ? 'on' : ''} ${m.status}`, onclick: () => { sel = m.id; editing = null; hiring = null; paint(); } },
-          h('div', { class: 'tm-card-h' }, avatar(m), h('span', { class: 'tm-cn' }, h('b', {}, m.name), h('small', { class: 'muted' }, m.role)),
+          h('div', { class: 'tm-card-h' }, avatar(m), h('span', { class: 'tm-cn' }, h('b', {}, m.name, ' ', lvChip(m.lv)), h('small', { class: 'muted' }, `${m.role}${m.lv ? ` · ${m.lv.title}` : ''}`)),
             h('span', { class: `pill ${cls}` }, m.status === 'working' ? h('span', { class: 'tm-pulse' }) : null, label)),
           h('div', { class: 'tm-card-s small' }, m.report?.summary || (m.enabled ? 'Waiting for its first shift' : 'Switched off')),
           h('div', { class: 'tm-card-f small muted' },
+            m.lv?.pending ? h('span', { class: 'pill violet' }, '🧭 Promotion suggested') : m.lv?.eligible ? h('span', { class: 'pill violet' }, 'Ready to level up') : null,
             m.needsYou ? h('span', { class: 'pill amber' }, `${m.needsYou} need you`) : null,
             m.report?.blocked?.length ? h('span', { class: 'pill red' }, `${m.report.blocked.length} blocked`) : null,
             m.report?.working?.length ? h('span', {}, `${m.report.working.length} in progress`) : null,
@@ -118,8 +130,9 @@
     const sc = m.score || {};
     const open = (m.inbox || []).filter((i) => i.status === 'open');
     const head = h('div', { class: 'tm-dh' }, avatar(m, 'lg'),
-      h('div', { class: 'tm-dn' }, h('h3', {}, m.name, h('span', { class: `pill ${cls}` }, m.status === 'working' ? h('span', { class: 'tm-pulse' }) : null, label)),
-        h('div', { class: 'muted' }, m.role),
+      h('div', { class: 'tm-dn' }, h('h3', {}, m.name, lvChip(m.lv), h('span', { class: `pill ${cls}` }, m.status === 'working' ? h('span', { class: 'tm-pulse' }) : null, label)),
+        h('div', { class: 'muted' }, `${m.role}${m.lv ? ` · ${m.lv.title}` : ''}`),
+        m.charter ? h('p', { class: 'tm-charter' }, m.charter) : null,
         h('div', { class: 'muted small' }, [
           m.lastShiftAt && `Last shift ${ago(m.lastShiftAt)}`, m.nextShiftAt && `next ${until(m.nextShiftAt)}`,
           T.autonomy?.[m.autonomy]?.split(':')[0], `$${sc.spentToday ?? 0} of $${m.budgetUsd} today`].filter(Boolean).join(' · '))),
@@ -131,10 +144,20 @@
         h('button', { class: 'btn sm ghost', onclick: () => { editing = JSON.parse(JSON.stringify(m)); paint(); } }, 'Edit'),
         h('button', { class: 'btn sm ghost', title: `Chat with ${m.name}`, onclick: () => window.askAIBubble?.({ text: `${m.name} (${m.role}) — charter: ${m.charter}. Last report: ${r.summary || 'none'}`, label: m.name }, `@${m.name} `) }, '✦ Ask')));
     const skip = m.lastSkip ? h('div', { class: 'blocked small' }, `Skipped ${ago(m.lastSkip.at)}: ${m.lastSkip.reason}`) : null;
-    const charter = sec('Charter', h('p', { class: 'tm-p' }, m.charter || '—'));
-    const needs = open.length ? sec(`Needs you (${open.length})`, h('div', { class: 'tm-needs' }, open.map((i) => i.kind === 'approval'
-      ? h('div', { class: 'tm-need' }, h('div', {}, h('b', {}, i.title), i.detail ? h('div', { class: 'muted small' }, i.detail) : null, keyEl(i.key, i.url)),
-        h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, `Approved · ${m.name} is doing it now`) }, 'Approve'),
+    const lv = m.lv;
+    const level = lv ? h('section', { class: 'tm-sec tm-level' },
+      h('div', { class: 'tm-sec-h' }, h('h4', {}, `Level ${lv.level} · ${lv.title}`), h('span', { class: 'muted small' }, `${lv.xp} XP`),
+        lv.pending ? h('span', { class: 'pill violet' }, '🧭 Ariadne suggested a promotion: see Signals') : lv.eligible ? h('span', { class: 'pill violet' }, 'Ready to level up: Ariadne will review') : null),
+      lv.next ? h('div', { class: 'tm-xpbar', title: `${Math.round(lv.progress * 100)}% to Level ${lv.next.level}` }, h('i', { style: `width:${Math.round(lv.progress * 100)}%` })) : h('div', { class: 'small muted' }, 'Top level reached.'),
+      lv.next ? h('details', {}, h('summary', { class: 'small muted' }, `What it takes to reach Level ${lv.next.level} · ${lv.next.title}`),
+        h('ul', { class: 'tm-gates' }, lv.gates.map((g) => h('li', { class: g.ok ? 'ok' : '' }, g.ok ? '✓ ' : '○ ', g.text))),
+        h('div', { class: 'small muted' }, 'XP: +10 per good shift, +4 per item done, +8 per suggestion you approve, +6 per question answered, +15 per 👍, +5 per lesson learned; −6 failed shift, −4 decline, −10 per 👎.')) : null,
+      lv.coaching ? h('div', { class: 'tm-coach small' }, h('span', {}, '🧭'), h('span', {}, h('b', {}, 'Ariadne: '), lv.coaching.text)) : null,
+      lv.promotions?.length ? h('div', { class: 'small muted' }, lv.promotions.map((p) => `Promoted to Level ${p.to} · ${p.title} ${ago(p.at)}`).join(' · ')) : null) : null;
+    const charter = null;
+    const needs = open.length ? sec(`Needs you (${open.length})`, h('div', { class: 'tm-needs' }, open.map((i) => i.kind === 'approval' || i.kind === 'promotion'
+      ? h('div', { class: `tm-need ${i.kind === 'promotion' ? 'promo' : ''}` }, h('div', {}, h('b', {}, i.kind === 'promotion' ? `🧭 ${i.title}` : i.title), i.detail ? h('div', { class: 'muted small' }, i.detail) : null, keyEl(i.key, i.url)),
+        h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, i.kind === 'promotion' ? `${m.name} was promoted 🎉` : `Approved · ${m.name} is doing it now`) }, i.kind === 'promotion' ? 'Promote' : 'Approve'),
           h('button', { class: 'btn sm ghost', onclick: () => { const note = prompt('Decline. Why? (optional, they read it next shift)'); if (note !== null) act('/api/team/resolve', { id: i.id, decision: 'decline', note }, 'Declined'); } }, 'Decline')))
       : h('div', { class: 'tm-need q' }, h('div', {}, h('b', {}, `Question: ${i.title}`), keyEl(i.key, i.url)),
         h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm', onclick: () => { window.askAIBubble ? window.askAIBubble({ text: `${m.name} asks: ${i.title}`, label: m.name }) : null; } }, 'Answer in chat')))))) : null;
@@ -160,7 +183,7 @@
       h('button', { class: 'btn sm', onclick: () => { const note = prompt(`What should ${m.name} do differently? It saves this to memory and reads it every shift.`); if (note !== null) act('/api/team/feedback', { id: m.id, up: false, note }, 'Correction saved'); } }, '👎 Correct it')));
     const hist = sec('Shift history', listOf(m.history, (x) => h('li', { class: x.ok ? '' : 'bad' }, h('span', { class: 'muted small' }, `${ago(x.at)} · `), x.summary,
       x.cost ? h('span', { class: 'muted small' }, ` · $${Math.round(x.cost * 100) / 100}`) : null)));
-    return h('div', { class: 'tm-detail' }, head, skip, needs, r.failed ? h('div', { class: 'blocked small' }, `Last shift failed: ${r.summary}`) : null, now, blocked, next, done, hand, charter, queue, rules, score, fb, hist);
+    return h('div', { class: 'tm-detail' }, head, skip, level, needs, r.failed ? h('div', { class: 'blocked small' }, `Last shift failed: ${r.summary}`) : null, now, blocked, next, done, hand, charter, queue, rules, score, fb, hist);
   }
 
   function editor(e) {

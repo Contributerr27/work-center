@@ -19,6 +19,12 @@ const TICK_MS = 30_000;
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const ID = /^[a-z0-9][a-z0-9-]{1,30}$/;
 const AUTONOMY = { observe: 'Observe: report only', draft: 'Draft and ask: proposes outward actions for your OK', act: 'Act: takes its allowed actions itself, asks for the rest' };
+// Levels: teammates earn XP from good work and are promoted (by you, on Ariadne's recommendation).
+const LEVELS = [
+  { level: 1, title: 'Novice', xp: 0 }, { level: 2, title: 'Apprentice', xp: 120 }, { level: 3, title: 'Adept', xp: 300 },
+  { level: 4, title: 'Expert', xp: 600 }, { level: 5, title: 'Master', xp: 1000 }, { level: 6, title: 'Legend', xp: 1600 },
+];
+const levelInfo = (n) => LEVELS.find((l) => l.level === n) || LEVELS[0];
 const COLORS = ['#6d5efc', '#0ea5a4', '#e0663d', '#c0399b', '#2f6fdb', '#4f9d2d', '#b7791f'];
 
 function setup(ctx) {
@@ -310,6 +316,7 @@ function setup(ctx) {
     settle();
     if (!lead() || team().paused) return;
     runApproved();
+    try { maybeReview(); } catch { /* next tick */ }
     const now = new Date();
     const runningAi = ctx.commands().filter((c) => c.running).length;
     for (const m of members()) {
@@ -340,6 +347,104 @@ function setup(ctx) {
     };
   }
 
+  /* ---------- Levels and XP ----------
+     XP: +10 per successful shift, +4 per item done, +8 per suggestion you approved, +6 per question
+     answered, +15 per 👍, +5 per lesson saved (correction); −6 per failed shift, −4 per decline, −10 per 👎.
+     A promotion needs the XP for the next level plus quality: 80%+ of the last 20 shifts succeeded, you
+     approved 60%+ of its decided suggestions (when it made any), and more 👍 than 👎. */
+  function xpOf(m, st) {
+    const hist = st.history || [];
+    const items = inbox().items.filter((i) => i.memberId === m.id);
+    const fb = st.feedback || { up: 0, down: 0 };
+    const parts = {
+      shifts: hist.filter((h) => h.ok).length * 10, failed: -hist.filter((h) => !h.ok).length * 6,
+      done: hist.reduce((a, h) => a + (h.done || 0), 0) * 4,
+      approved: items.filter((i) => i.kind === 'approval' && i.status === 'approved').length * 8,
+      declined: -items.filter((i) => i.kind === 'approval' && i.status === 'declined').length * 4,
+      answered: items.filter((i) => i.kind === 'question' && i.status === 'answered').length * 6,
+      praise: fb.up * 15, corrections: -fb.down * 10, lessons: (st.lessons || 0) * 5,
+    };
+    return { xp: Math.max(0, Object.values(parts).reduce((a, b) => a + b, 0)), parts };
+  }
+  function levelState(m, st) {
+    const level = Number(m.level) || 1;
+    const { xp, parts } = xpOf(m, st);
+    const next = LEVELS.find((l) => l.level === level + 1) || null;
+    const last20 = (st.history || []).slice(0, 20);
+    const okRate = last20.length ? last20.filter((h) => h.ok).length / last20.length : 0;
+    const decided = inbox().items.filter((i) => i.memberId === m.id && i.kind === 'approval' && (i.status === 'approved' || i.status === 'declined'));
+    const approveRate = decided.length ? decided.filter((i) => i.status === 'approved').length / decided.length : null;
+    const fb = st.feedback || { up: 0, down: 0 };
+    const gates = next ? [
+      { ok: xp >= next.xp, text: `${xp} / ${next.xp} XP` },
+      { ok: last20.length >= 3 && okRate >= 0.8, text: `${Math.round(okRate * 100)}% of the last ${last20.length} shifts succeeded (needs 80%, at least 3)` },
+      { ok: approveRate == null || approveRate >= 0.6, text: approveRate == null ? 'No suggestions decided yet' : `You approved ${Math.round(approveRate * 100)}% of its suggestions (needs 60%)` },
+      { ok: fb.up >= fb.down, text: `👍 ${fb.up} · 👎 ${fb.down} (needs at least as many 👍)` },
+    ] : [];
+    const pending = inbox().items.find((i) => i.memberId === m.id && i.kind === 'promotion' && i.status === 'open') || null;
+    return {
+      level, title: levelInfo(level).title, xp, parts, next: next ? { level: next.level, title: next.title, xp: next.xp } : null,
+      progress: next ? Math.min(1, (xp - levelInfo(level).xp) / Math.max(1, next.xp - levelInfo(level).xp)) : 1,
+      gates, eligible: !!next && gates.every((g) => g.ok), pending: pending ? { id: pending.id, title: pending.title } : null,
+      promotions: st.promotions || [], coaching: st.coaching || null,
+    };
+  }
+
+  /* ---------- Ariadne's promotion review ----------
+     She reads every teammate's level, XP, gates, recent shifts and your feedback, and recommends who is
+     ready to move up (and coaching for the rest). A recommendation is a Signals item: Approve promotes. */
+  const REVIEW = path.join(DIR, 'reviews.json');
+  let reviewing = null;
+  function reviewTeam(why) {
+    if (reviewing) return reviewing;
+    const crew = members().map((m) => {
+      const st = stateOf(m.id);
+      const lv = levelState(m, st);
+      return { id: m.id, name: m.name, role: m.role, charter: m.charter, level: lv.level, title: lv.title, xp: lv.xp, next: lv.next, gates: lv.gates, eligible: lv.eligible, pendingPromotion: !!lv.pending,
+        recentShifts: (st.history || []).slice(0, 12).map((h) => ({ at: h.at, ok: h.ok, summary: h.summary, done: h.done, approvals: h.approvals })), feedback: st.feedback || { up: 0, down: 0 } };
+    });
+    const prompt = [
+      `You are Ariadne, the recruiter of ${owner}'s Work Center team. Part of your job is to watch how each AI teammate performs and recommend promotions when they have earned them.`,
+      `Levels: ${JSON.stringify(LEVELS)}. A promotion is one level at a time. Recommend one only when the teammate is "eligible" (all gates pass) AND their recent work shows real quality: useful results, good judgment, few failures. Never recommend one who already has a pending promotion.`,
+      'For the others, give one line of coaching: the most useful thing they could do better to get there.',
+      `Team (JSON): ${JSON.stringify(crew).slice(0, 18_000)}`,
+      'Read-only: do not call tools or change anything. Answer with only one JSON object:',
+      '{ "summary": "one line on the team", "reviews": [ { "id": "teammate id", "promote": true, "reason": "2 sentences of evidence from their work", "coaching": "one line" } ] }',
+    ].join('\n');
+    reviewing = ctx.ai(prompt, { small: false, cwd: ctx.DATA, timeoutMs: 4 * 60_000 }).then((r) => {
+      if (r.error) throw new Error(r.error);
+      const out = require('../aijob').jsonFrom(r.text);
+      const b = inbox();
+      const made = [];
+      for (const rv of Array.isArray(out.reviews) ? out.reviews : []) {
+        const m = members().find((x) => x.id === rv.id);
+        if (!m) continue;
+        const st = stateOf(m.id);
+        const lv = levelState(m, st);
+        st.coaching = rv.coaching ? { text: String(rv.coaching).slice(0, 300), at: new Date().toISOString() } : st.coaching;
+        saveState(m.id, st);
+        if (!rv.promote || !lv.eligible || lv.pending || !lv.next) continue;
+        const it = { id: newId(), memberId: m.id, kind: 'promotion', toLevel: lv.next.level, title: `Promote ${m.name} to Level ${lv.next.level} · ${lv.next.title}`, detail: String(rv.reason || '').slice(0, 800), status: 'open', createdAt: new Date().toISOString(), urgency: 1 };
+        b.items.unshift(it); made.push({ it, m });
+      }
+      saveInbox(b);
+      if (made.length) ctx.addPings(made.map(({ it, m }) => ({ id: `team-${it.id}`, teamItem: it.id, teamMember: m.id, who: '🧭 Ariadne', channel: 'Recruiter · promotion', when: it.createdAt, kind: 'approve', urgency: 1, summary: it.title, detail: it.detail, source: 'team' })), { source: 'team', mission3: false });
+      const rec = { at: new Date().toISOString(), why, summary: String(out.summary || '').slice(0, 300), promoted: made.map(({ m }) => m.name), cost: r.cost || 0 };
+      writeJson(REVIEW, { last: rec, history: [rec, ...(readJson(REVIEW, {}).history || [])].slice(0, 30) });
+      ctx.logRun?.({ kind: 'team', title: `Ariadne: team review${made.length ? ` · recommends ${made.map(({ m }) => m.name).join(', ')}` : ''}`, startedAt: rec.at, finishedAt: new Date().toISOString(), result: rec.summary, cost: r.cost });
+      return rec;
+    }).finally(() => { reviewing = null; });
+    return reviewing;
+  }
+  // Ariadne looks once a weekday morning, and only when someone could be promoted.
+  function maybeReview(now = new Date()) {
+    if (reviewing || now.getDay() === 0 || now.getDay() === 6 || now.getHours() < 10) return;
+    const last = readJson(REVIEW, {}).last;
+    if (last && new Date(last.at).toDateString() === now.toDateString()) return;
+    const anyone = members().some((m) => { const lv = levelState(m, stateOf(m.id)); return lv.eligible && !lv.pending; });
+    if (anyone) reviewTeam('daily').catch(() => {});
+  }
+
   /* ---------- View ---------- */
   const rulesById = () => {
     const a = readJson(path.join(ctx.DATA, 'autopilot.json'), { rules: [] });
@@ -359,12 +464,13 @@ function setup(ctx) {
       return {
         ...m, status, running, lastCommandId: st.lastCommandId || null, report: st.report || null, lastShiftAt: st.lastShiftAt || null, lastSkip: st.lastSkip || null,
         nextShiftAt: m.enabled && !m.paused && !team().paused ? nextShiftAt(m, st, now) : null, handoffs: st.handoffs || [], queueSize: st.queueSize ?? null,
-        needsYou: mine.filter((i) => i.status === 'open').length, inbox: mine.slice(0, 20), rulesOwned: owned, score: score(m, st), history: (st.history || []).slice(0, 15),
+        needsYou: mine.filter((i) => i.status === 'open').length, inbox: mine.slice(0, 20), rulesOwned: owned, score: score(m, st), history: (st.history || []).slice(0, 15), lv: levelState(m, st),
       };
     });
     const open = b.items.filter((i) => i.status === 'open');
     return {
-      paused: !!team().paused, members: list, autonomy: AUTONOMY,
+      paused: !!team().paused, members: list, autonomy: AUTONOMY, levels: LEVELS,
+      recruiter: { reviewing: !!reviewing, last: readJson(REVIEW, {}).last || null, eligible: list.filter((m) => m.lv.eligible && !m.lv.pending).map((m) => m.name) },
       totals: {
         working: list.filter((m) => m.running).length, blocked: list.reduce((a, m) => a + (m.report?.blocked?.length || 0), 0),
         needsYou: open.length, approvals: open.filter((i) => i.kind === 'approval').length, questions: open.filter((i) => i.kind === 'question').length,
@@ -375,7 +481,7 @@ function setup(ctx) {
       templates: STARTERS.map((s) => ({ id: s.id, name: s.name, role: s.role, emoji: s.emoji })),
     };
   }
-  ctx.provide('team', async () => { const v = view(); return { totals: v.totals, paused: v.paused, members: v.members.map((m) => ({ id: m.id, name: m.name, emoji: m.emoji, color: m.color, role: m.role, status: m.status, needsYou: m.needsYou, summary: m.report?.summary || null, blocked: m.report?.blocked?.length || 0, working: m.report?.working?.length || 0 })), questions: v.questions }; });
+  ctx.provide('team', async () => { const v = view(); return { totals: v.totals, paused: v.paused, members: v.members.map((m) => ({ id: m.id, name: m.name, emoji: m.emoji, color: m.color, role: m.role, status: m.status, level: m.lv.level, levelTitle: m.lv.title, needsYou: m.needsYou, summary: m.report?.summary || null, blocked: m.report?.blocked?.length || 0, working: m.report?.working?.length || 0 })), questions: v.questions }; });
   ctx.addSection('team', 'Team', () => { const v = view(); return { totals: v.totals, members: v.members.map((m) => ({ name: m.name, role: m.role, status: m.status, report: m.report, needsYou: m.needsYou })) }; });
 
   /* ---------- Routes ---------- */
@@ -469,6 +575,7 @@ function setup(ctx) {
   });
 
   ctx.route('GET', '/api/team', () => view());
+  ctx.route('POST', '/api/team/review', async () => ({ review: await reviewTeam('manual') }));
   ctx.route('GET', '/api/team/queue', async ({ url }) => ({ queue: await resolveQueue(find(url.searchParams.get('id'))) }));
   ctx.route('POST', '/api/team/member', ({ body }) => {
     const list = members();
@@ -511,6 +618,7 @@ function setup(ctx) {
     saveState(m.id, st);
     // A correction becomes a note the member reads next shift.
     if (body.note) {
+      st.lessons = (st.lessons || 0) + 1; saveState(m.id, st);
       const n = String(body.note).slice(0, 600);
       require('node:child_process').execFile('amem', ['remember', `${m.name} (AI teammate) correction from ${first}: ${n}`, '--kind', 'feedback', '--anchor', memoryAnchor(m)], { env: ctx.env, timeout: 15_000 }, () => {});
       const s2 = stateOf(m.id); s2.handoffs = [...(s2.handoffs || []), { from: first, note: `Correction: ${n}`, at: new Date().toISOString() }]; saveState(m.id, s2);
@@ -529,6 +637,16 @@ function setup(ctx) {
       if (!a) throw bad('Write an answer');
       Object.assign(it, { status: 'answered', answer: a.slice(0, 2000), resolvedAt: new Date().toISOString() });
       const st = stateOf(m.id); st.wakeAt = new Date(Date.now() + 60_000).toISOString(); saveState(m.id, st); // pick it up soon
+    } else if (body.decision === 'approve' && it.kind === 'promotion') {
+      const list = members();
+      const mm = list.find((x) => x.id === m.id);
+      mm.level = Math.max(Number(mm.level) || 1, Number(it.toLevel) || 1);
+      saveMembers(list);
+      Object.assign(it, { status: 'approved', resolvedAt: new Date().toISOString(), executed: 'promoted' });
+      const st = stateOf(m.id);
+      st.promotions = [{ to: mm.level, title: levelInfo(mm.level).title, at: new Date().toISOString(), reason: it.detail }, ...(st.promotions || [])].slice(0, 20);
+      st.handoffs = [...(st.handoffs || []), { from: first, note: `You were promoted to Level ${mm.level} (${levelInfo(mm.level).title}). Keep it up.`, at: new Date().toISOString() }];
+      saveState(m.id, st);
     } else if (body.decision === 'approve') {
       Object.assign(it, { status: 'approved', resolvedAt: new Date().toISOString(), note: String(body.note || '').slice(0, 600) });
       saveInbox(b);

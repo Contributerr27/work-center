@@ -86,7 +86,6 @@
 .tm-q-t { line-height: 1.45; }
 .tm-q-row { display: flex; gap: 6px; align-items: flex-end; }
 .tm-ans { flex: 1; min-width: 0; font: inherit; font-size: 13px; resize: vertical; }
-#aib-fab { position: relative; }
 .tm-qbadge { position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red, #e5484d); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg); }
 .tm-qbadge[hidden] { display: none; }
 
@@ -119,3 +118,18 @@
 .tm-name-in { width: 160px; font: inherit; font-size: 13px; }
 .tm-hire-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 .tm-why { display: flex; gap: 8px; align-items: flex-start; font-style: italic; }
+
+/* Levels */
+.tm-lv { display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 800; letter-spacing: .02em; padding: 1px 6px; border-radius: 6px; vertical-align: 2px;
+  background: color-mix(in srgb, var(--lvc, #8a8f99) 18%, transparent); color: var(--lvc, #8a8f99); border: 1px solid color-mix(in srgb, var(--lvc, #8a8f99) 40%, transparent); }
+.tm-lv.l1 { --lvc: #8a8f99; } .tm-lv.l2 { --lvc: #2f9e6b; } .tm-lv.l3 { --lvc: #2f6fdb; } .tm-lv.l4 { --lvc: #7c5cff; } .tm-lv.l5 { --lvc: #d4870f; } .tm-lv.l6 { --lvc: #e0457b; }
+.tm-charter { margin: 4px 0 0; line-height: 1.5; font-size: 13.5px; color: var(--text); max-width: 72ch; }
+.tm-level { padding: 10px 12px; border-radius: 12px; background: var(--soft); }
+.tm-xpbar { height: 7px; border-radius: 6px; background: color-mix(in srgb, var(--line) 80%, transparent); overflow: hidden; }
+.tm-xpbar i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--blue), var(--violet, #7c5cff)); }
+.tm-gates { margin: 6px 0; padding-left: 4px; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.tm-gates li.ok { color: var(--green); }
+.tm-coach { display: flex; gap: 6px; align-items: flex-start; }
+.tm-need.promo { background: var(--violet-bg, var(--soft)); }
+.tm-rec { border: 1px solid color-mix(in srgb, #b7791f 40%, var(--line)); background: color-mix(in srgb, #b7791f 7%, var(--panel)); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.tm-rec-a { display: flex; gap: 6px; }

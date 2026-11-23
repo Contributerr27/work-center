@@ -114,3 +114,15 @@ html.panel-phone #phone .ph-list { flex: 1; max-height: none; }
 #view-veil { display: none; }
 html.view-open #view-veil { display: block; position: fixed; top: 0; right: 0; bottom: 0; left: calc(var(--side-w) + var(--gap) * 1.5); z-index: 24; background: inherit; pointer-events: auto; }
 html.panel #view-veil { display: none; }
+
+/* ---------- Form fields everywhere follow the theme ----------
+   :where() keeps this at zero priority, so a feature's own field style (command bars, the AI chat box,
+   Settings) still wins; any field without one (new dialogs, forms, chats) gets the theme instead of white. */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"]), textarea, select) {
+  border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 9px; padding: 7px 10px; font: inherit; font-size: 13px; min-width: 0;
+}
+:where(input, textarea)::placeholder { color: var(--muted); opacity: 1; }
+:where(input:not([type="checkbox"], [type="radio"]), textarea, select):focus { outline: 2px solid var(--blue); outline-offset: 0; border-color: transparent; }
+:where(select) option { background: var(--panel); color: var(--text); }
+:where(input[type="color"]) { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 2px; height: 34px; width: 56px; }
+:where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--blue); }

@@ -115,6 +115,7 @@ const currentPack = () => { const id = document.documentElement.dataset.pack; re
 function cachedPack(id) { try { const c = JSON.parse(store('themePack') || 'null'); return c && c.id === id ? c : null; } catch (e) { return null; } }
 function applyPack(p) {
   const root = document.documentElement;
+  setTimeout(() => window.syncScheme?.(), 0); // after the tokens and theme below are in place
   if (!p) { delete root.dataset.pack; document.getElementById('pack-css')?.remove(); return; }
   root.dataset.theme = p.base || 'normal';
   root.dataset.pack = p.id;
@@ -161,12 +162,28 @@ const THEMES = [
 ];
 if (!THEMES.some((t) => t.id === theme())) document.documentElement.dataset.theme = 'vice';
 function applyThemeId(id) {
-  if (THEMES.some((t) => t.id === id)) { applyPack(null); document.documentElement.dataset.theme = id; return true; }
+  if (THEMES.some((t) => t.id === id)) { applyPack(null); document.documentElement.dataset.theme = id; syncScheme(); return true; }
   const p = PACKS.find((x) => x.id === id) || cachedPack(id);
   if (!p) return false;
   applyPack(p); store('themePack', JSON.stringify(p));
+  syncScheme();
   return true;
 }
+// Native parts (dropdown menus, date and time pickers, scrollbars) follow the theme: dark when the
+// theme's background is dark. Theme packs only give colors, so this reads the background itself.
+function syncScheme() {
+  try {
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    const c = document.createElement('canvas').getContext('2d');
+    c.fillStyle = bg || '#fff';
+    const hex = c.fillStyle;
+    const [r, g, b] = hex.startsWith('#') ? [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) : (hex.match(/\d+/g) || [255, 255, 255]).map(Number);
+    document.documentElement.style.colorScheme = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5 ? 'dark' : 'light';
+  } catch (e) { /* keep the default */ }
+}
+window.syncScheme = syncScheme;
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => setTimeout(syncScheme, 0));
+setTimeout(syncScheme, 0);
 /* Wording follows the theme: plain work words in Normal, missions and Respect in Vice, an alpine
    expedition in Winter. term(key) for labels, stepName(step) for a step's title. */
 const TERMS = {
