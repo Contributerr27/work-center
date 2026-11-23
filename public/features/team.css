@@ -146,3 +146,23 @@
 .tm-line-h { display: flex; align-items: center; gap: 6px; }
 .tm-line-a { display: flex; gap: 6px; flex-wrap: wrap; }
 .tm-line-a:empty { display: none; }
+
+/* Growth & HR → AI team */
+.hr-who { margin-right: 6px; }
+.gr-team { display: flex; flex-direction: column; gap: 16px; }
+.gr-rules, .gr-card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.gr-rules-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gr-rules h3, .gr-card h3 { margin: 0; }
+.gr-ladder { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.gr-step { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 12px; background: var(--soft); }
+@media (max-width: 900px) { .gr-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.gr-head { display: flex; gap: 14px; align-items: flex-start; }
+.gr-hn { flex: 1; min-width: 0; }
+.gr-hn h3 { display: flex; align-items: center; gap: 8px; font-size: 19px; }
+.gr-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 1100px) { .gr-cols { grid-template-columns: 1fr; } }
+.gr-col { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--soft); min-width: 0; }
+.gr-col h4 { margin: 0; font-size: 11px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.gr-col p { margin: 0; line-height: 1.45; }
+.gr-todo ul, .gr-learn { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.gr-rev { border-top: 1px solid var(--line); padding-top: 6px; display: flex; flex-direction: column; gap: 2px; }

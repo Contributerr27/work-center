@@ -218,14 +218,17 @@
     if (!ov || ov.hidden) return;
     const d = S.data;
     const tabs = [['overview', 'Overview'], ['review', 'Self-review'], ['feedback', 'Feedback & score'], ['org', 'Org chart'], ['settings', 'Settings']];
+    const who = S.who || 'me';
+    const whoBtn = (id, label) => h('button', { class: `aib-mode ${who === id ? 'on' : ''}`, onclick: () => { S.who = id; paint(); } }, label);
     const keep = document.querySelector(`#${OV} .prj-scroll`)?.scrollTop;
     const chatSt = chatPos($('hr-msgs'));
     ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'Growth and HR' },
       h('header', { class: 'aic-head' }, h('h2', { class: 'vh' }, window.icon ? window.icon('growth') : null, 'Growth & HR'),
-        h('nav', { class: 'aib-modes hr-tabs' }, tabs.map(([id, label]) => h('button', { class: `aib-mode ${S.tab === id ? 'on' : ''}`, onclick: () => { S.tab = id; paint(); } }, label))),
+        h('nav', { class: 'aib-modes hr-who', 'aria-label': 'Whose growth' }, whoBtn('me', '🙂 Me'), window.teamGrowth ? whoBtn('team', '👥 AI team') : null),
+        who === 'me' ? h('nav', { class: 'aib-modes hr-tabs' }, tabs.map(([id, label]) => h('button', { class: `aib-mode ${S.tab === id ? 'on' : ''}`, onclick: () => { S.tab = id; paint(); } }, label))) : null,
         h('span', { class: 'st-gap' }), h('span', { class: 'muted small' }, 'Stays on this computer'), h('button', { class: 'btn', onclick: close }, 'Close')),
       h('div', { class: 'prj-scroll' }, h('div', { class: 'prj-wrap' },
-        !d ? h('div', { class: 'muted' }, 'Loading…') : d.error ? h('div', { class: 'blocked' }, d.error)
+        who === 'team' && window.teamGrowth ? window.teamGrowth() : !d ? h('div', { class: 'muted' }, 'Loading…') : d.error ? h('div', { class: 'blocked' }, d.error)
           : { overview, review: reviewTab, feedback: feedbackTab, org: orgTab, settings: settingsTab }[S.tab]()))));
     const sc = document.querySelector(`#${OV} .prj-scroll`); if (sc && keep) sc.scrollTop = keep;
     restoreChat($('hr-msgs'), chatSt);
@@ -245,6 +248,7 @@
   };
   // After the AI changes HR data (bubble or coach), show the new version.
   window.addEventListener('hq:changed', () => { if ($(OV) && !$(OV).hidden) { S.review = null; load(); } });
+  window.addEventListener('team:changed', () => { if ($(OV) && !$(OV).hidden && S.who === 'team' && !document.activeElement?.closest?.(`#${OV}`)?.matches?.('input,textarea')) paint(); });
   window.HQ_ASK = window.HQ_ASK || {};
   window.HQ_ASK.hr = (ref, prefill) => { S.tab = 'overview'; S.draft = prefill ?? `About ${ref.label}: `; paint(); $('hr-chat')?.querySelector('input')?.focus(); };
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $(OV) && !$(OV).hidden) close(); });

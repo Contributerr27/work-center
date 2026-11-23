@@ -106,7 +106,8 @@ Nothing is sent to Slack by the app; in Jira it only moves an approved PRD when 
 - **AI engine** (`ai.engine`): Claude Code, Cursor Agent, Gemini CLI or Codex; automatic picks the first one
   installed. Claude Code is the reference engine (live step feed, follow-up chats, small model for scans).
 - **Rules:** `ai.rules` plus any shared rule files (`ai.shareInstructions`) are added to every AI prompt.
-- **AI Center:** every AI run by day (`data/history/YYYY-MM-DD.jsonl`), month calendar, full transcripts.
+- **Activity log:** every AI run by you and your AI team (`data/history/YYYY-MM-DD.jsonl`): filter by who, topic, date range
+  and text (ticket keys too), grouped by day, with full transcripts and a calendar to jump to a day.
 - **✦ bubble (⌘J):** chat or terminal, small/medium/full, file and image attachments (`data/uploads`).
 - **⌂ Home:** streak, rank, today at a glance, 30-day stats, 18-week activity map, AI actions, wins.
 - **Themes:** Normal, Vice, Winter. Add one in `THEMES` (public/flow.js) plus a `:root[data-theme=…]` block.

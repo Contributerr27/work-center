@@ -161,6 +161,34 @@ const THEMES = [
   { id: 'winter', name: 'Winter', sub: 'Alpine morning, frosted glass, snowfall', sw: ['#e8f0f9', '#2a5d96', '#b3122e'] },
 ];
 if (!THEMES.some((t) => t.id === theme())) document.documentElement.dataset.theme = 'vice';
+/* ---------- askText: a themed text box (window.prompt does not work in the desktop app) ----------
+   const text = await askText('Why?', { value: '', placeholder: '', ok: 'Decline', multiline: true });
+   Resolves to the text (possibly '') on OK, or null on Cancel / Esc. */
+function askText(title, { value = '', placeholder = '', ok = 'OK', multiline = true, hint = '' } = {}) {
+  return new Promise((resolve) => {
+    const prev = document.activeElement;
+    const field = multiline
+      ? h('textarea', { class: 'ask-in', rows: Math.min(10, Math.max(3, String(value).split('\n').length + 1)), placeholder }, value)
+      : h('input', { class: 'ask-in', value, placeholder });
+    const done = (v) => { wrap.remove(); document.removeEventListener('keydown', key, true); try { prev?.focus?.(); } catch (e) { /* gone */ } resolve(v); };
+    const key = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(null); }
+      else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey || !multiline)) { e.preventDefault(); done(field.value); }
+    };
+    const wrap = h('div', { class: 'ask-ov', role: 'dialog', 'aria-modal': 'true', 'aria-label': title, onclick: (e) => { if (e.target === wrap) done(null); } },
+      h('div', { class: 'ask-box' },
+        h('b', { class: 'ask-t' }, title),
+        hint ? h('div', { class: 'muted small' }, hint) : null,
+        field,
+        h('div', { class: 'ask-a' }, h('span', { class: 'muted small' }, multiline ? '⌘↩ to confirm · Esc to cancel' : '↩ to confirm · Esc to cancel'), h('span', { class: 'spacer' }),
+          h('button', { class: 'btn ghost', onclick: () => done(null) }, 'Cancel'),
+          h('button', { class: 'btn go', onclick: () => done(field.value) }, ok))));
+    document.body.append(wrap);
+    document.addEventListener('keydown', key, true);
+    requestAnimationFrame(() => { field.focus(); if (field.setSelectionRange) field.setSelectionRange(field.value.length, field.value.length); });
+  });
+}
+window.askText = askText;
 function applyThemeId(id) {
   if (THEMES.some((t) => t.id === id)) { applyPack(null); document.documentElement.dataset.theme = id; syncScheme(); return true; }
   const p = PACKS.find((x) => x.id === id) || cachedPack(id);
@@ -241,7 +269,7 @@ async function installTheme() {
   try {
     let r = await post('/api/themes/install', {});
     if (r.needPath) {
-      const p = prompt('Path to a theme folder (with theme.json) or a .zip:');
+      const p = await askText('Path to a theme folder (with theme.json) or a .zip', { multiline: false, ok: 'Install' });
       if (!p) return;
       r = await post('/api/themes/install', { path: p });
     }
@@ -275,8 +303,9 @@ function counts() {
   const g = D.live.github.data, j = D.live.jira.data, ai = D.ai, today = new Date().toDateString();
   const slack = (ai.slack?.items || []).filter((i) => !isDone(`sl:${i.url}`));
   return {
-    github: g ? g.repoPRs.length + g.reviewRequests.length : '–',
-    jira: j ? j.prdQa.length + j.bugs.filter((b) => b.nudge).length : '–',
+    // Items a teammate handles (Team) do not count as yours: they sit in "Handled by the team".
+    github: g ? g.repoPRs.filter((p) => !window.teamOwns?.(p.url)).length + g.reviewRequests.filter((p) => !window.teamOwns?.(p.url)).length : '–',
+    jira: j ? j.prdQa.filter((p) => !window.teamOwns?.(p.url || p.key)).length + j.bugs.filter((b) => b.nudge && !window.teamOwns?.(b.url || b.key)).length : '–',
     slack: slack.length,
     work: (ai.work?.testIdeas || []).filter((t) => !isDone(`ti:${t.title}`)).length + (ai.work?.breakdowns || []).length + (D.tasks || []).filter((t) => !t.doneAt).length,
     meet: (ai.meetings?.meetings || []).filter((x) => new Date(x.start).toDateString() === today).length,
@@ -491,7 +520,7 @@ function initChrome() {
 window.HQ_VIEWCTX = window.HQ_VIEWCTX || {};
 function buildViewContext() {
   const open = VIEWS.find((v) => $(v) && !$(v).hidden) || '';
-  const base = { view: { 'home-ov': 'Home', 'team-ov': 'Team', 'prj-ov': 'Projects', 'hr-ov': 'Growth & HR', 'aic-ov': 'AI Center' }[open] || 'Day' };
+  const base = { view: { 'home-ov': 'Home', 'team-ov': 'Team', 'prj-ov': 'Projects', 'hr-ov': 'Growth & HR', 'aic-ov': 'Activity log' }[open] || 'Day' };
   let extra = {};
   try {
     extra = open ? (window.HQ_VIEWCTX[open]?.() || {}) : { mission: FLOW.find((x) => x.id === current())?.name || null, dataFiles: 'parts/*.json (the desk)' };
@@ -545,7 +574,7 @@ function initNav() {
   new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; syncNav(); }); } })
     .observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden'] });
   syncNav();
-  // ⌘1–⌘5: Home, Day, Projects, Growth & HR, AI Center.
+  // ⌘1–⌘5: Home, Day, Projects, Growth & HR, Activity log.
   const keys = ['btn-home', 'nav-day', 'btn-projects', 'btn-hr', 'btn-term'];
   document.addEventListener('keydown', (e) => {
     if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;

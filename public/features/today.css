@@ -1,0 +1,54 @@
+/* Today panels (public/features/today.js). Tokens from app.css. */
+#s-today { margin-bottom: 18px; }
+.td-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-areas: "you team" "done done"; gap: 14px; }
+.td-you { grid-area: you; } .td-team { grid-area: team; } .td-done { grid-area: done; }
+@media (max-width: 1100px) { .td-grid { grid-template-columns: 1fr; grid-template-areas: "you" "team" "done"; } }
+.td-card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; box-shadow: var(--shadow); backdrop-filter: var(--glass-blur, none); -webkit-backdrop-filter: var(--glass-blur, none); }
+.td-h { display: flex; align-items: baseline; gap: 10px; }
+.td-h h3 { margin: 0; font-size: 15px; font-weight: 750; }
+.td-empty { color: var(--muted); padding: 6px 0; }
+
+/* Your part */
+.td-you { border-top: 3px solid var(--blue); }
+.td-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.td-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 12px; background: var(--soft); }
+.td-item.u4 { box-shadow: inset 3px 0 0 var(--red); } .td-item.u3 { box-shadow: inset 3px 0 0 var(--amber, #d4870f); }
+.td-k { display: grid; place-items: center; width: 28px; height: 28px; font-size: 16px; }
+.td-t { min-width: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.4; }
+.td-t b { font-weight: 600; }
+.td-detail { font-size: 12.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.td-detail.draft { color: var(--text); background: var(--panel); border-radius: 8px; padding: 6px 8px; -webkit-line-clamp: 5; white-space: pre-wrap; }
+.td-a { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; max-width: 300px; }
+.td-ans { width: 150px; }
+@media (max-width: 700px) { .td-item { grid-template-columns: 28px 1fr; } .td-a { grid-column: 1 / -1; justify-content: flex-start; max-width: none; } }
+
+/* Team at work */
+.td-rows { display: flex; flex-direction: column; gap: 4px; }
+.td-row { display: grid; grid-template-columns: 38px minmax(90px, 130px) minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.td-row:hover { background: var(--soft); }
+.td-row.run { background: color-mix(in srgb, var(--green) 7%, transparent); }
+.td-row.stuck { background: color-mix(in srgb, var(--red) 8%, transparent); }
+.td-rn { display: flex; flex-direction: column; min-width: 0; }
+.td-rn b { display: flex; gap: 6px; align-items: center; }
+.td-rn small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-rs { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.td-now { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.td-rs small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-rb { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 700px) { .td-row { grid-template-columns: 38px 1fr; } .td-rs, .td-rb { grid-column: 2; justify-content: flex-start; } }
+
+/* Done today */
+.td-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.td-chips .chip.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+.td-feed { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.td-feed li { display: grid; grid-template-columns: 62px 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.td-feed li:last-child { border-bottom: 0; }
+.td-ft { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Steps: chips and the fold */
+.td-chip { margin-left: auto; flex: none; font-size: 11px; font-weight: 650; padding: 1px 7px; border-radius: 10px; background: var(--violet-bg, var(--soft)); color: var(--violet, var(--text)); white-space: nowrap; }
+.tm-fold { margin-top: 6px; border-top: 1px dashed var(--line); padding-top: 4px; }
+.tm-fold summary { cursor: pointer; padding: 4px 2px; }
+.tm-fold > .row { opacity: .8; }
+[data-theme="vice"] .td-card { background: rgba(18, 7, 36, .9); border-color: #55338a; }
+[data-theme="vice"] .td-you { border-top-color: #ff2e93; }

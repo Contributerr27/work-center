@@ -126,3 +126,10 @@ html.panel #view-veil { display: none; }
 :where(select) option { background: var(--panel); color: var(--text); }
 :where(input[type="color"]) { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 2px; height: 34px; width: 56px; }
 :where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--blue); }
+
+/* askText dialog */
+.ask-ov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(0, 0, 0, .35); backdrop-filter: blur(2px); }
+.ask-box { width: min(560px, calc(100vw - 40px)); background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
+.ask-t { font-size: 15px; }
+.ask-in { width: 100%; box-sizing: border-box; font-size: 13.5px; line-height: 1.45; resize: vertical; }
+.ask-a { display: flex; align-items: center; gap: 8px; }

@@ -106,7 +106,7 @@ function renderPhone() {
       p.kind === 'approve' ? h('div', { class: 'ph-acts' },
         p.answered ? h('span', { class: `pill ${p.answered === 'declined' ? 'red' : 'green'}` }, p.answered === 'declined' ? '✕ Declined' : '✓ Approved')
           : [h('button', { class: 'btn sm go', title: p.reply ? 'Send this reply as you' : 'Approve: the teammate does exactly this now', onclick: () => resolveTeam(p, 'approve') }, p.reply ? 'Send' : 'Approve'),
-            p.reply ? h('button', { class: 'btn sm', title: 'Change the words, then send', onclick: () => { const t = prompt('Edit the reply, then OK to send it as you:', p.detail || ''); if (t && t.trim()) resolveTeam(p, 'approve', t.trim()); } }, 'Edit') : null,
+            p.reply ? h('button', { class: 'btn sm', title: 'Change the words, then send', onclick: async () => { const t = await askText('Edit the reply, then send it as you', { value: p.detail || '', ok: 'Send' }); if (t && t.trim()) resolveTeam(p, 'approve', t.trim()); } }, 'Edit') : null,
             h('button', { class: 'btn sm ghost', onclick: () => resolveTeam(p, 'decline') }, 'Decline')],
         p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
         window.openTeam && h('button', { class: 'btn sm ghost', title: 'Open this teammate', onclick: () => { closePhone(); window.openTeam(p.teamMember); } }, 'Team'))
@@ -143,7 +143,7 @@ async function dismissPings(ids) {
 const SRC_ICON = { gmail: '✉', calendar: '📅', slack: '', team: '' };
 async function resolveTeam(p, decision, text) {
   let note = '';
-  if (decision === 'decline') { note = prompt('Decline. Tell them why (optional): it goes into their next shift.') ?? null; if (note === null) return; }
+  if (decision === 'decline') { note = await askText('Decline. Why? (optional)', { hint: 'It goes into their next shift.', ok: 'Decline' }); if (note === null) return; }
   try {
     await post('/api/team/resolve', { id: p.teamItem, decision, note, text });
     p.answered = decision === 'approve' ? 'approved' : 'declined';

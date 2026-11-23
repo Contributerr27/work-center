@@ -181,3 +181,17 @@ html.term-open #aib-fab { display: none; }
 .aib-file img { width: 28px; height: 28px; object-fit: cover; border-radius: 5px; }
 .aib-term { flex: 1; min-height: 0; padding: 8px; background: #0f1115; }
 [data-theme="vice"] .aib-term { background: #12061f; }
+
+/* Activity log filters */
+.act-f { display: flex; flex-direction: column; gap: 8px; }
+.act-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.act-row .chip.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+.act-row .chip small { opacity: .7; }
+.act-who .chip { display: inline-flex; align-items: center; gap: 5px; }
+.act-who .tm-av.sm { width: 18px; height: 18px; font-size: 11px; }
+.act-day { font-size: 11px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 10px 6px 2px; }
+.act-keys { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.act-keys .chip { cursor: pointer; font-size: 10.5px; padding: 0 6px; }
+.act-cal { margin-top: 6px; }
+.act-cal summary { cursor: pointer; padding: 4px 2px; }
+.aic-item .tm-av.sm { width: 24px; height: 24px; font-size: 13px; flex: none; }

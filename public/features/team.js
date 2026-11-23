@@ -70,6 +70,56 @@
         approval ? h('button', { class: 'btn sm ghost', onclick: () => window.openTeam(s.member.id) }, 'Details') : null));
   };
 
+  /* ---------- Growth & HR → AI team: levels, the path up, Ariadne's reviews, what each one learned ---------- */
+  window.teamGrowth = () => {
+    if (!T) { load(); return h('div', { class: 'muted' }, 'Loading your team…'); }
+    const R = T.recruiter || {};
+    const xpNeed = (lv) => (lv.next ? Math.max(0, lv.next.xp - lv.xp) : 0);
+    const ladderInfo = h('section', { class: 'gr-rules' },
+      h('div', { class: 'gr-rules-h' }, h('h3', {}, 'How teammates level up'),
+        h('button', { class: 'btn sm', disabled: !!R.reviewing, onclick: () => act('/api/team/review', {}, 'Ariadne is reviewing the team (about a minute)').then(() => window.dispatchEvent(new Event('team:changed'))) }, R.reviewing ? 'Ariadne is reviewing…' : '🧭 Ask Ariadne to review now')),
+      h('div', { class: 'gr-ladder' }, (T.levels || []).map((l) => h('div', { class: 'gr-step' }, h('span', { class: `tm-lv l${l.level}` }, `Lv ${l.level}`), h('b', {}, l.title), h('small', { class: 'muted' }, `${l.xp} XP`)))),
+      h('p', { class: 'small muted' }, 'XP: +10 per good shift, +4 per item finished, +8 per suggestion you approve, +6 per question you answer, +15 per 👍, +5 per lesson learned. −6 per failed shift, −4 per decline, −10 per 👎. ',
+        'A promotion also needs quality: 80%+ of the last 20 shifts succeeded (at least 3), you approved 60%+ of its suggestions, and at least as many 👍 as 👎. Ariadne reviews each weekday and suggests promotions in Signals; you decide.'),
+      R.last ? h('p', { class: 'small' }, h('b', {}, `Last review ${new Date(R.last.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}: `), R.last.summary || '') : null);
+    const cards = (T.members || []).map((m) => {
+      const lv = m.lv || {};
+      const sc = m.score || {};
+      const gates = lv.gates || [];
+      const met = gates.filter((g) => g.ok).length;
+      const todo = lv.next ? [
+        xpNeed(lv) ? `Earn ${xpNeed(lv)} more XP (about ${Math.ceil(xpNeed(lv) / 18)} good shift${Math.ceil(xpNeed(lv) / 18) === 1 ? '' : 's'} with finished work)` : null,
+        ...gates.slice(1).filter((g) => !g.ok).map((g) => g.text),
+      ].filter(Boolean) : [];
+      return h('section', { class: 'gr-card' },
+        h('div', { class: 'gr-head' }, avatar(m, 'lg'),
+          h('div', { class: 'gr-hn' }, h('h3', {}, m.name, lvChip(lv), h('span', { class: 'muted small' }, lv.title || '')), h('div', { class: 'muted' }, m.role), h('p', { class: 'tm-charter' }, m.charter)),
+          h('button', { class: 'btn sm ghost', onclick: () => window.openTeam(m.id) }, 'Open')),
+        h('div', { class: 'gr-cols' },
+          h('div', { class: 'gr-col' },
+            h('h4', {}, lv.next ? `Path to Level ${lv.next.level} · ${lv.next.title}` : 'Top level reached'),
+            lv.next ? h('div', { class: 'tm-xpbar', title: `${lv.xp} of ${lv.next.xp} XP` }, h('i', { style: `width:${Math.round((lv.progress || 0) * 100)}%` })) : null,
+            lv.next ? h('div', { class: 'small muted' }, `${lv.xp} of ${lv.next.xp} XP · ${met} of ${gates.length} goals met`) : null,
+            h('ul', { class: 'tm-gates' }, gates.map((g) => h('li', { class: g.ok ? 'ok' : '' }, g.ok ? '✓ ' : '○ ', g.text))),
+            todo.length ? h('div', { class: 'gr-todo' }, h('b', { class: 'small' }, 'To get there'), h('ul', {}, todo.map((t) => h('li', { class: 'small' }, t)))) : lv.next ? h('div', { class: 'pill violet' }, lv.pending ? '🧭 Promotion suggested: see Signals' : 'Ready: Ariadne will review') : null),
+          h('div', { class: 'gr-col' },
+            h('h4', {}, '🧭 Ariadne’s review'),
+            lv.coaching ? h('p', { class: 'small' }, h('b', {}, 'Coaching: '), lv.coaching.text) : h('p', { class: 'small muted' }, 'No review yet.'),
+            (lv.reviews || []).slice(0, 3).map((r) => h('div', { class: 'gr-rev small' }, h('span', { class: 'muted' }, new Date(r.at).toLocaleDateString([], { month: 'short', day: 'numeric' }), r.promote ? ' · recommended a promotion' : ''),
+              r.learned ? h('div', {}, h('b', {}, 'Learned: '), r.learned) : null, r.reason && r.promote ? h('div', {}, r.reason) : null)),
+            (lv.promotions || []).length ? h('div', { class: 'small muted' }, lv.promotions.map((p) => `Promoted to Level ${p.to} · ${p.title} on ${new Date(p.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}`).join(' · ')) : null),
+          h('div', { class: 'gr-col' },
+            h('h4', {}, 'What it learned'),
+            (lv.learned || []).length ? h('ul', { class: 'gr-learn' }, lv.learned.slice(0, 6).map((l) => h('li', { class: 'small' }, l.text, h('span', { class: 'muted' }, ` · ${l.from === 'self' ? 'its own lesson' : `from ${l.from}`}, ${new Date(l.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}`))))
+              : h('p', { class: 'small muted' }, 'No lessons yet. It records one after a shift when something worked or should change, and your 👎 corrections land here too.'),
+            h('button', { class: 'btn sm', onclick: async () => { const note = await askText(`Teach ${m.name} something`, { hint: 'It reads this every shift.', ok: 'Save lesson' }); if (note && note.trim()) act('/api/team/feedback', { id: m.id, up: false, note, teach: true }, 'Lesson saved'); } }, 'Teach a lesson'))),
+        h('div', { class: 'tm-strip' },
+          [[sc.shifts, 'shifts this week'], [sc.okRate != null ? `${sc.okRate}%` : '—', 'succeeded'], [sc.done, 'items done'], [sc.approveRate != null ? `${sc.approveRate}%` : '—', 'of asks approved'], [`👍 ${sc.feedback?.up || 0} · 👎 ${sc.feedback?.down || 0}`, 'feedback'], [`$${sc.costWeek ?? 0}`, 'cost this week']]
+            .map(([v, l]) => h('div', { class: 'tm-kpi' }, h('b', {}, v ?? '—'), h('small', {}, l)))));
+    });
+    return h('div', { class: 'gr-team' }, ladderInfo, ...cards);
+  };
+
   /* ---------- Home card ---------- */
   window.teamHomeCard = (close) => {
     const t = T || (D?.ext?.team ? { members: D.ext.team.members, totals: D.ext.team.totals } : null);
@@ -161,10 +211,10 @@
         m.charter ? h('p', { class: 'tm-charter' }, m.charter) : null,
         h('div', { class: 'muted small' }, [
           m.lastShiftAt && `Last shift ${ago(m.lastShiftAt)}`, m.nextShiftAt && `next ${until(m.nextShiftAt)}`,
-          T.autonomy?.[m.autonomy]?.split(':')[0], `$${sc.spentToday ?? 0} of $${m.budgetUsd} today`].filter(Boolean).join(' · '))),
+          T.autonomy?.[m.autonomy]?.split(':')[0], `${m.shiftsToday ?? 0} of ${m.maxShifts ?? 8} shifts today`, T.billing === 'plan' ? `≈$${sc.spentToday ?? 0} of plan usage today (not billed)` : `$${sc.spentToday ?? 0} of $${m.budgetUsd} today`].filter(Boolean).join(' · '))),
       h('div', { class: 'tm-dacts' },
         m.running ? h('button', { class: 'btn sm', onclick: () => act('/api/team/stop', { id: m.id }, 'Stopping') }, '■ Stop')
-          : h('button', { class: 'btn sm primary', onclick: () => act('/api/team/shift', { id: m.id }, `${m.name} started a shift: watch it in the AI Center`) }, '▶ Run a shift now'),
+          : h('button', { class: 'btn sm primary', onclick: () => act('/api/team/shift', { id: m.id }, `${m.name} started a shift: watch it in the Activity log`) }, '▶ Run a shift now'),
         h('label', { class: 'tm-sw', title: m.enabled ? 'On: works on its schedule' : 'Off: only works when you press Run' },
           h('input', { type: 'checkbox', checked: !!m.enabled, onchange: (e) => act('/api/team/member/toggle', { id: m.id, enabled: e.target.checked }, e.target.checked ? `${m.name} is on the schedule` : `${m.name} is off`) }), h('span', {}, 'On schedule')),
         h('button', { class: 'btn sm ghost', onclick: () => { editing = JSON.parse(JSON.stringify(m)); paint(); } }, 'Edit'),
@@ -184,8 +234,8 @@
     const needs = open.length ? sec(`Needs you (${open.length})`, h('div', { class: 'tm-needs' }, open.map((i) => i.kind === 'approval' || i.kind === 'promotion' || i.kind === 'wake'
       ? h('div', { class: `tm-need ${i.kind === 'promotion' ? 'promo' : ''}` }, h('div', {}, h('b', {}, i.kind === 'promotion' ? `🧭 ${i.title}` : i.title), i.detail ? h('div', { class: 'muted small' }, i.detail) : null, keyEl(i.key, i.url)),
         h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm go', onclick: () => act('/api/team/resolve', { id: i.id, decision: 'approve' }, i.kind === 'promotion' ? `${m.name} was promoted 🎉` : `Approved · ${m.name} is doing it now`) }, i.kind === 'promotion' ? 'Promote' : i.kind === 'wake' ? 'Let it follow up' : i.reply ? 'Send' : 'Approve'),
-          i.reply ? h('button', { class: 'btn sm', onclick: () => { const t = prompt('Edit the reply, then OK to send it as you:', i.detail || ''); if (t && t.trim()) act('/api/team/resolve', { id: i.id, decision: 'approve', text: t.trim() }, 'Sending your reply'); } }, 'Edit') : null,
-          h('button', { class: 'btn sm ghost', onclick: () => { const note = prompt('Decline. Why? (optional, they read it next shift)'); if (note !== null) act('/api/team/resolve', { id: i.id, decision: 'decline', note }, 'Declined'); } }, 'Decline')))
+          i.reply ? h('button', { class: 'btn sm', onclick: async () => { const t = await askText('Edit the reply, then send it as you', { value: i.detail || '', ok: 'Send' }); if (t && t.trim()) act('/api/team/resolve', { id: i.id, decision: 'approve', text: t.trim() }, 'Sending your reply'); } }, 'Edit') : null,
+          h('button', { class: 'btn sm ghost', onclick: async () => { const note = await askText('Decline. Why? (optional)', { hint: 'They read it next shift.', ok: 'Decline' }); if (note !== null) act('/api/team/resolve', { id: i.id, decision: 'decline', note }, 'Declined'); } }, 'Decline')))
       : h('div', { class: 'tm-need q' }, h('div', {}, h('b', {}, `Question: ${i.title}`), keyEl(i.key, i.url)),
         h('div', { class: 'tm-need-a' }, h('button', { class: 'btn sm', onclick: () => { window.askAIBubble ? window.askAIBubble({ text: `${m.name} asks: ${i.title}`, label: m.name }) : null; } }, 'Answer in chat')))))) : null;
     const listOf = (items, fn) => (items?.length ? h('ul', { class: 'tm-ul' }, items.map(fn)) : null);
@@ -207,7 +257,7 @@
       ...Object.entries(sc.metrics || {}).filter(([, v]) => v).map(([k, v]) => kpi(v, k.replace(/([A-Z])/g, ' $1').toLowerCase()))));
     const fb = sec('How did it do?', h('div', { class: 'tm-fb' },
       h('button', { class: 'btn sm', onclick: () => act('/api/team/feedback', { id: m.id, up: true }, 'Thanks noted') }, '👍 Good work'),
-      h('button', { class: 'btn sm', onclick: () => { const note = prompt(`What should ${m.name} do differently? It saves this to memory and reads it every shift.`); if (note !== null) act('/api/team/feedback', { id: m.id, up: false, note }, 'Correction saved'); } }, '👎 Correct it')));
+      h('button', { class: 'btn sm', onclick: async () => { const note = await askText(`What should ${m.name} do differently?`, { hint: 'Saved to its memory; it reads this every shift.', ok: 'Save correction' }); if (note !== null && note.trim()) act('/api/team/feedback', { id: m.id, up: false, note }, 'Correction saved'); } }, '👎 Correct it')));
     const hist = sec('Shift history', listOf(m.history, (x) => h('li', { class: x.ok ? '' : 'bad' }, h('span', { class: 'muted small' }, `${ago(x.at)} · `), x.summary,
       x.cost ? h('span', { class: 'muted small' }, ` · $${Math.round(x.cost * 100) / 100}`) : null)));
     return h('div', { class: 'tm-detail' }, head, skip, level, needs, r.failed ? h('div', { class: 'blocked small' }, `Last shift failed: ${r.summary}`) : null, now, blocked, next, done, hand, charter, queue, rules, score, fb, hist);
@@ -251,8 +301,9 @@
       row('Work it owns', qrows, 'Its queue: real items it picks up each shift.'),
       row('Schedule', schedule),
       h('div', { class: 'tm-grid2' },
+        row('Shifts per day', h('input', { type: 'number', min: 1, max: 48, value: e.maxShifts ?? 8, oninput: (ev) => { e.maxShifts = Number(ev.target.value); } }), 'Its working day: after this many shifts it stops until tomorrow. Approved actions and replies still run.'),
         row('Autonomy', h('select', { onchange: (ev) => { e.autonomy = ev.target.value; paint(); } }, Object.entries(T.autonomy || {}).map(([k, v]) => h('option', { value: k, selected: e.autonomy === k }, v)))),
-        row('Budget per day ($)', h('input', { type: 'number', min: 0.5, step: 0.5, value: e.budgetUsd ?? 5, oninput: (ev) => { e.budgetUsd = Number(ev.target.value); } }))),
+        row(T.billing === 'plan' ? 'Spending cap per day ($, only with an API key)' : 'Spending cap per day ($)', h('input', { type: 'number', min: 0.5, step: 0.5, value: e.budgetUsd ?? 5, oninput: (ev) => { e.budgetUsd = Number(ev.target.value); } }), T.billing === 'plan' ? 'You use a Claude subscription: runs count toward your plan, nothing is billed, so this cap is not applied.' : null)),
       e.autonomy === 'act' ? row('Actions it may take without asking (one per line)', h('textarea', { rows: 3, oninput: (ev) => { e.allowed = ev.target.value.split('\n'); } }, (e.allowed || []).join('\n')), 'e.g. "Comment on Jira tickets in my PRD queue". Everything else still asks you in Signals.') : null,
       row('Autopilot rules it owns', rules, 'They keep their own schedule; the card shows how they did.'),
       !e.new ? h('div', { class: 'tm-danger' }, h('button', { class: 'btn sm ghost', onclick: () => { if (confirm(`Remove ${e.name} from the team? Its history stays on disk.`)) act('/api/team/member/delete', { id: e.id }, `${e.name} left the team`).then(() => { sel = null; editing = null; paint(); }); } }, `Remove ${e.name}`)) : null);

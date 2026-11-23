@@ -1,4 +1,5 @@
-/* AI Center (every AI chat and run, by day, with a month calendar) and the floating AI bubble
+/* Activity log (every AI run by you and your AI team: filter by who, topic, dates and text; full transcripts)
+   and the floating AI bubble
    (chat or terminal, three sizes, file and image attachments).
    Uses page globals: h, $, D, post, toast, load, HQ, liveFeed. */
 (() => {
@@ -12,17 +13,33 @@
   const secName = (id) => ({ github: 'GitHub', jira: 'Jira', slack: 'Slack', work: 'Work', meet: 'Meetings', hq: 'AI chat' }[id] || id || '');
   const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { /* no storage */ } return null; };
 
-  /* ================= AI Center ================= */
-  const A = { day: dayKey(new Date()), month: dayKey(new Date()).slice(0, 7), runs: [], counts: {}, sel: null, detail: null, q: '', timer: null, reply: '' };
+  /* ================= Activity log ================= */
+  const A = { day: dayKey(new Date()), month: dayKey(new Date()).slice(0, 7), runs: [], counts: {}, sel: null, detail: null, q: '', timer: null, reply: '',
+    f: { range: store('act:range') || '7d', from: '', to: '', who: 'all', topic: 'all' }, act: null, qT: null };
 
   async function getJson(url) { const r = await fetch(url); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Failed'); return j; }
-  async function loadDay(day) {
-    A.day = day;
-    try { A.runs = (await getJson(`/api/history?date=${day}`)).runs; } catch (e) { toast(e.message); A.runs = []; }
-    if (!A.runs.some((r) => r.id === A.sel)) { A.sel = A.runs[0]?.id || null; A.detail = null; }
-    if (A.sel) await loadRun(A.sel, true);
+  // The date range the filters ask for.
+  function span() {
+    const today = dayKey(new Date());
+    const back = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); };
+    switch (A.f.range) {
+      case 'today': return [today, today];
+      case '30d': return [back(29), today];
+      case 'day': return [A.day, A.day];
+      case 'custom': return [A.f.from || back(6), A.f.to || today];
+      default: return [back(6), today];
+    }
+  }
+  async function loadActivity(keepSel) {
+    const [from, to] = span();
+    const qs = new URLSearchParams({ from, to, who: A.f.who, topic: A.f.topic, q: A.q.trim() });
+    try { A.act = await getJson(`/api/activity?${qs}`); A.runs = A.act.runs; } catch (e) { toast(e.message); A.act = null; A.runs = []; }
+    if (!A.runs.some((r) => r.id === A.sel)) { if (keepSel) { /* keep showing it */ } else { A.sel = A.runs[0]?.id || null; A.detail = null; } }
+    if (A.sel && !A.detail) await loadRun(A.sel, true);
     paint();
   }
+  // A calendar day (Home's activity map opens one): show just that day.
+  async function loadDay(day) { A.day = day; A.f.range = 'day'; await loadActivity(); }
   async function loadMonth(month) {
     A.month = month;
     try { A.counts = (await getJson(`/api/history/days?month=${month}`)).days; } catch (e) { A.counts = {}; }
@@ -30,14 +47,15 @@
   }
   async function loadRun(id, quiet) {
     A.sel = id;
-    try { A.detail = await getJson(`/api/history/run?id=${encodeURIComponent(id)}&date=${A.day}`); } catch (e) { A.detail = { error: e.message }; }
+    const day = A.runs.find((r) => r.id === id)?.day || A.day;
+    try { A.detail = await getJson(`/api/history/run?id=${encodeURIComponent(id)}&date=${day}`); } catch (e) { A.detail = { error: e.message }; }
     if (!quiet) paint();
   }
   function tick() {
     clearTimeout(A.timer);
     if ($(OV)?.hidden) return;
     const busy = A.runs.some((r) => r.running) || A.detail?.runs?.some((r) => r.running);
-    A.timer = setTimeout(async () => { if (A.day === dayKey(new Date())) { await loadDay(A.day); } tick(); }, busy ? 3000 : 20000);
+    A.timer = setTimeout(async () => { if (span()[1] === dayKey(new Date())) { await loadActivity(true); } tick(); }, busy ? 3000 : 20000);
   }
 
   window.openAICenter = async (day) => {
@@ -45,7 +63,7 @@
     ov.hidden = false;
     document.documentElement.classList.add('aic-open');
     paint();
-    await Promise.all([loadMonth((day || A.day).slice(0, 7)), loadDay(day || A.day)]);
+    await Promise.all([loadMonth((day || A.day).slice(0, 7)), day ? loadDay(day) : loadActivity()]);
     tick();
   };
   const close = () => { HQ.closeOverlay(OV); document.documentElement.classList.remove('aic-open'); clearTimeout(A.timer); };
@@ -80,41 +98,53 @@
   }
 
   function runTitle(r) { return r.title || r.text || r.label || 'AI run'; }
+  const avatarOf = (w) => h('span', { class: 'tm-av sm', style: `--c:${w?.color || '#8a8f99'}`, title: w?.name || '' }, w?.emoji || (w?.id === 'you' ? '🙂' : (w?.name || '?')[0]));
+  function filters() {
+    const F = A.f, act = A.act || {};
+    const set = (patch) => { Object.assign(F, patch); if (patch.range) store('act:range', patch.range); A.sel = null; A.detail = null; loadActivity(); };
+    const rangeBtn = (id, label) => h('button', { class: `chip ${F.range === id ? 'on' : ''}`, onclick: () => set({ range: id }) }, label);
+    const [from, to] = span();
+    const whoChips = [{ id: 'all', name: 'Everyone', n: act.total }, ...(act.facets?.who || [])];
+    const topicChips = [{ name: 'all', label: 'All topics', n: act.total }, ...(act.facets?.topic || [])];
+    return h('div', { class: 'act-f' },
+      h('div', { class: 'act-row' }, rangeBtn('today', 'Today'), rangeBtn('7d', '7 days'), rangeBtn('30d', '30 days'), F.range === 'day' ? rangeBtn('day', parseDay(A.day).toLocaleDateString([], { month: 'short', day: 'numeric' })) : null, rangeBtn('custom', 'Custom')),
+      F.range === 'custom' ? h('div', { class: 'act-row' },
+        h('input', { type: 'date', value: F.from || from, max: dayKey(new Date()), onchange: (e) => set({ from: e.target.value }) }), h('span', { class: 'muted small' }, 'to'),
+        h('input', { type: 'date', value: F.to || to, max: dayKey(new Date()), onchange: (e) => set({ to: e.target.value }) })) : null,
+      h('div', { class: 'act-row act-who' }, whoChips.map((w) => h('button', { class: `chip ${F.who === w.id ? 'on' : ''}`, onclick: () => set({ who: w.id }) },
+        w.id !== 'all' ? avatarOf(w) : null, w.name, w.n != null ? h('small', {}, ` ${w.n}`) : null))),
+      h('div', { class: 'act-row' }, topicChips.map((t) => h('button', { class: `chip ${F.topic === t.name ? 'on' : ''}`, onclick: () => set({ topic: t.name }) }, t.label || t.name, t.n != null ? h('small', {}, ` ${t.n}`) : null))),
+      h('input', { class: 'st-in aic-search', type: 'search', placeholder: 'Search text, results, ticket keys…', value: A.q,
+        oninput: (e) => { A.q = e.target.value; clearTimeout(A.qT); A.qT = setTimeout(() => loadActivity(), 300); } }));
+  }
   function sidebar() {
-    const q = A.q.toLowerCase();
-    const list = A.runs.filter((r) => !q || [runTitle(r), r.label, r.result, secName(r.section)].join(' ').toLowerCase().includes(q));
-    const d = parseDay(A.day);
-    const isToday = A.day === dayKey(new Date());
-    const step = (n) => { const x = parseDay(A.day); x.setDate(x.getDate() + n); const k = dayKey(x); if (k.slice(0, 7) !== A.month) loadMonth(k.slice(0, 7)); loadDay(k); };
+    const act = A.act;
+    const [from, to] = span();
+    const label = from === to ? (from === dayKey(new Date()) ? 'Today' : parseDay(from).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }))
+      : `${parseDay(from).toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${parseDay(to).toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
     return h('aside', { class: 'aic-side' },
-      calendar(),
-      h('div', { class: 'aic-dayhead' },
-        h('button', { class: 'aic-nav', onclick: () => step(-1), 'aria-label': 'Previous day' }, '‹'),
-        h('b', {}, isToday ? 'Today' : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })),
-        h('button', { class: 'aic-nav', onclick: () => step(1), disabled: isToday, 'aria-label': 'Next day' }, '›'),
-        h('span', { class: 'st-gap' }),
-        isToday ? null : h('button', { class: 'btn st-sm', onclick: () => { loadMonth(dayKey(new Date()).slice(0, 7)); loadDay(dayKey(new Date())); } }, 'Today')),
-      h('input', { class: 'st-in aic-search', type: 'search', placeholder: 'Filter this day…', value: A.q, oninput: (e) => { A.q = e.target.value; paintList(); } }),
-      h('div', { class: 'aic-list', id: 'aic-list' }, listItems(list)));
+      filters(),
+      h('div', { class: 'aic-dayhead' }, h('b', {}, label), h('span', { class: 'muted small' }, act ? `${act.count} of ${act.total} run${act.total === 1 ? '' : 's'}` : 'Loading…')),
+      h('div', { class: 'aic-list', id: 'aic-list' }, listItems(A.runs)),
+      h('details', { class: 'act-cal' }, h('summary', { class: 'muted small' }, 'Jump to a day'), calendar()));
   }
   function listItems(list) {
-    if (!list.length) return h('div', { class: 'muted small aic-empty' }, A.runs.length ? 'No match' : 'No AI runs this day');
-    return list.map((r) => {
-      const [ic, kind] = KIND[r.kind] || KIND.run;
-      return h('button', { class: `aic-item ${r.id === A.sel ? 'sel' : ''} ${r.error ? 'bad' : ''}`, onclick: () => loadRun(r.id) },
-        h('span', { class: 'aic-ic', title: kind }, ic),
+    if (!list.length) return h('div', { class: 'muted small aic-empty' }, A.act?.total ? 'Nothing matches these filters' : 'No AI activity in this range');
+    const out = [];
+    let lastDay = null;
+    for (const r of list) {
+      if (r.day !== lastDay) { lastDay = r.day; out.push(h('div', { class: 'act-day' }, r.day === dayKey(new Date()) ? 'Today' : parseDay(r.day).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))); }
+      out.push(h('button', { class: `aic-item ${r.id === A.sel ? 'sel' : ''} ${r.error ? 'bad' : ''}`, onclick: () => loadRun(r.id) },
+        avatarOf(r.who),
         h('span', { class: 'aic-it' },
           h('b', {}, runTitle(r)),
-          h('small', {}, [hhmm(r.startedAt), r.section ? secName(r.section) : kind, r.steps ? `${r.steps} steps` : null].filter(Boolean).join(' · '))),
-        r.running ? h('span', { class: 'spin' }) : r.error ? h('span', { class: 'aic-st bad' }, '✕') : (r.actions || []).length ? h('span', { class: 'pill green' }, r.actions.length) : null);
-    });
+          h('small', {}, [hhmm(r.startedAt), r.who?.name, r.topic, r.steps ? `${r.steps} steps` : null].filter(Boolean).join(' · ')),
+          r.keys?.length ? h('span', { class: 'act-keys' }, r.keys.slice(0, 4).map((k) => h('span', { class: 'chip sm', onclick: (e) => { e.stopPropagation(); A.q = k; loadActivity(); } }, k))) : null),
+        r.running ? h('span', { class: 'spin' }) : r.error ? h('span', { class: 'aic-st bad' }, '✕') : (r.actions || []).length ? h('span', { class: 'pill green' }, r.actions.length) : null));
+    }
+    return out;
   }
-  function paintList() {
-    const el = $('aic-list');
-    if (!el) return;
-    const q = A.q.toLowerCase();
-    el.replaceChildren(...[listItems(A.runs.filter((r) => !q || [runTitle(r), r.label, r.result].join(' ').toLowerCase().includes(q)))].flat());
-  }
+  function paintList() { const el = $('aic-list'); if (el) el.replaceChildren(...[listItems(A.runs)].flat()); }
 
   function transcriptView(r) {
     const steps = r.transcript || [];
@@ -136,7 +166,7 @@
   }
 
   function main() {
-    if (!A.sel) return h('section', { class: 'aic-main aic-blank' }, h('div', {}, h('b', {}, 'Nothing selected'), h('p', { class: 'muted' }, 'Pick a day on the calendar, then a run from the list. Start a new chat with the ✦ bubble.')));
+    if (!A.sel) return h('section', { class: 'aic-main aic-blank' }, h('div', {}, h('b', {}, 'Nothing selected'), h('p', { class: 'muted' }, 'Pick a run from the list. Filter by who, topic, dates or text on the left; start a new chat with the ✦ bubble.')));
     const d = A.detail;
     if (!d) return h('section', { class: 'aic-main' }, h('div', { class: 'muted' }, 'Loading…'));
     if (d.error) return h('section', { class: 'aic-main' }, h('div', { class: 'blocked' }, d.error));
@@ -149,7 +179,7 @@
         const t = A.reply.trim();
         if (t.length < 2) return;
         try { await post('/api/command', { section: last.section, text: t, thread: d.thread }); A.reply = ''; toast('Sent'); } catch (err) { return toast(err.message); }
-        await loadDay(dayKey(new Date()));
+        await loadActivity(true);
         tick();
       } },
       h('input', { class: 'st-in', placeholder: 'Continue this chat…', value: A.reply, oninput: (e) => (A.reply = e.target.value) }),
@@ -161,10 +191,10 @@
     if (!ov || ov.hidden) return;
     const keepScroll = $('aic-thread')?.scrollTop;
     const total = Object.values(A.counts).reduce((a, b) => a + b, 0);
-    ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'AI Center' },
+    ov.replaceChildren(h('div', { class: 'aic-box', role: 'dialog', 'aria-label': 'Activity log' },
       h('header', { class: 'aic-head' },
-        h('h2', { class: 'vh' }, window.icon ? window.icon('ai') : null, 'AI Center'),
-        h('span', { class: 'muted small' }, `${total} AI run${total === 1 ? '' : 's'} in ${parseDay(`${A.month}-01`).toLocaleDateString([], { month: 'long' })}`),
+        h('h2', { class: 'vh' }, window.icon ? window.icon('ai') : null, 'Activity log'),
+        h('span', { class: 'muted small' }, `Everything you and your AI team ran · ${total} run${total === 1 ? '' : 's'} in ${parseDay(`${A.month}-01`).toLocaleDateString([], { month: 'long' })}`),
         h('span', { class: 'st-gap' }),
         h('button', { class: 'btn ghost', onclick: () => { close(); openBubble('chat'); } }, '✦ New chat'),
         h('button', { class: 'btn ghost', title: 'Cmd+Shift+T', onclick: () => { close(); window.openTerminal?.(); } }, '⌨ Terminal'),
@@ -296,7 +326,7 @@
       h('span', { class: 'st-gap' }),
       B.mode === 'chat' && B.thread ? h('button', { class: 'aib-x', title: 'New chat', onclick: () => { setPref('thread', ''); B.thread = null; paintBubble(); } }, '＋') : null,
       sizeBtn('s', 'S', 'Small'), sizeBtn('m', 'M', 'Medium'), sizeBtn('l', '⤢', 'Full view'),
-      h('button', { class: 'aib-x', title: 'Open in AI Center', onclick: async () => { const t = B.thread; if (PANEL_MODE && await window.shellMain('openAICenter')) return; closeBubble(); window.openAICenter(); if (t) setTimeout(() => loadRun(t), 400); } }, '↗'),
+      h('button', { class: 'aib-x', title: 'Open in the Activity log', onclick: async () => { const t = B.thread; if (PANEL_MODE && await window.shellMain('openAICenter')) return; closeBubble(); window.openAICenter(); if (t) setTimeout(() => loadRun(t), 400); } }, '↗'),
       h('button', { class: 'aib-x', title: 'Close (⌘J)', 'aria-label': 'Close', onclick: closeBubble }, '✕'));
     if (B.mode === 'terminal') {
       const host = h('div', { class: 'aib-term' });
