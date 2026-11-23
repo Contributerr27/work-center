@@ -44,7 +44,16 @@ const desktop = {
     if (await this.running()) return;
     execFile('open', ['-g', '-j', '-a', appPath()]);
     for (let i = 0; i < 30 && !(await this.running()); i++) await new Promise((r) => setTimeout(r, 500));
+    this.keepHidden();
     await new Promise((r) => setTimeout(r, 1500)); // it logs in before it accepts play commands
+  },
+  // Spotify shows its window once it has loaded, even when opened hidden. We started it, so
+  // hide it again for a while; the sound keeps playing and Work Center stays the player.
+  hide() { return osa('tell application "System Events" to if exists process "Spotify" then set visible of process "Spotify" to false').catch(() => {}); },
+  keepHidden(ms = 15000) {
+    const end = Date.now() + ms;
+    const tick = async () => { await this.hide(); if (Date.now() < end) setTimeout(tick, 700); };
+    tick();
   },
   async play(uri) { await this.wake(); return osa(`tell application "Spotify" to play track "${uri}"`); },
   async control(a) { await this.wake(); return osa(`tell application "Spotify" to ${{ toggle: 'playpause', next: 'next track', prev: 'previous track' }[a]}`); },
@@ -262,6 +271,7 @@ module.exports = {
         // A transfer can land paused: make sure it plays.
         await new Promise((r) => setTimeout(r, 800));
         await osa('tell application "Spotify" to play').catch(() => {});
+        desktop.hide();
         return { ok: true, device: 'this Mac' };
       }
       const web = (await devices()).find((d) => d.here);
