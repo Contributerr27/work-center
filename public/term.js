@@ -23,6 +23,7 @@
   let retryDelay = 500;
   let pendingText = null;
   let ready = false; // the session has produced output on this connection
+  let kind = (() => { try { return localStorage.getItem('term:kind') === 'shell' ? 'shell' : 'ai'; } catch { return 'ai'; } })();
 
   const themeName = () => (document.documentElement.dataset.theme === 'normal' ? 'normal' : 'vice');
 
@@ -45,6 +46,23 @@
     return loading;
   }
 
+  // Claude (the AI CLI) or Shell (your own login shell: gcloud/aws/twg logins open your browser).
+  function setKind(k) {
+    if (k === kind) return;
+    kind = k;
+    try { localStorage.setItem('term:kind', k); } catch { /* private mode */ }
+    document.querySelectorAll('.term-kind button').forEach((b) => b.classList.toggle('on', b.dataset.k === kind));
+    pendingText = null;
+    if (ws) { const old = ws; ws = null; try { old.close(); } catch { /* closed */ } }
+    if (term) { term.reset(); connect(); requestAnimationFrame(() => { resize(); term.focus(); }); }
+  }
+  function kindSwitch() {
+    const ai = (typeof D !== 'undefined' && D && D.config && D.config.engine) || 'AI CLI';
+    return h('span', { class: 'term-kind', role: 'group', 'aria-label': 'Which terminal' },
+      h('button', { type: 'button', 'data-k': 'ai', class: kind === 'ai' ? 'on' : '', title: `${ai}: the AI in a terminal`, onclick: () => setKind('ai') }, `✦ ${ai}`),
+      h('button', { type: 'button', 'data-k': 'shell', class: kind === 'shell' ? 'on' : '', title: 'Your own shell: run anything, e.g. gcloud auth login (opens your browser)', onclick: () => setKind('shell') }, '$ Shell'));
+  }
+
   function overlay() {
     let el = $('terminal');
     if (el) return el;
@@ -52,7 +70,7 @@
       h('div', { class: 'term-bar' },
         h('span', { class: 'term-dot', id: 'term-dot', title: 'Connection' }),
         h('b', { class: 'term-name' }, 'HQ Terminal'),
-        h('span', { class: 'term-sub' }, (typeof D !== 'undefined' && D && D.config && D.config.engine) || 'AI CLI'),
+        kindSwitch(),
         h('span', { class: 'term-gap' }),
         h('span', { class: 'term-hint' }, '⌘⇧T to toggle'),
         h('button', { class: 'term-btn', type: 'button', onclick: restart, title: 'Restart the session' }, 'Restart'),
@@ -85,7 +103,7 @@
     ready = false;
     setStatus('connecting');
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const sock = (ws = new WebSocket(`${proto}://${location.host}/term?token=${encodeURIComponent(D.token)}`));
+    const sock = (ws = new WebSocket(`${proto}://${location.host}/term?token=${encodeURIComponent(D.token)}&kind=${kind}`));
     sock.onopen = () => {
       retryDelay = 500;
       setStatus('live');
@@ -172,7 +190,7 @@
   }
 
   window.openTerminal = async (initialText) => {
-    if (typeof initialText === 'string' && initialText) pendingText = initialText;
+    if (typeof initialText === 'string' && initialText) { if (kind !== 'ai') setKind('ai'); pendingText = initialText; }
     try { await ensure(); } catch (e) { toast(e.message); return; }
     if (host || (screenEl && !screenEl.isConnected)) { host = host || {}; window.unmountTerminal(); }
     $('terminal').hidden = false;
@@ -186,7 +204,7 @@
     window.closeTerminal();
     host = container;
     screenEl = screenEl || $('term-screen');
-    container.append(screenEl);
+    container.append(h('div', { class: 'term-bar term-mini' }, kindSwitch()), screenEl);
     if (term) term.options.theme = THEMES[themeName()];
     requestAnimationFrame(() => { resize(); term.focus(); });
   };

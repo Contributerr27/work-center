@@ -24,7 +24,7 @@ const refs = {
 async function createTask(sectionId, ref) {
   try {
     const t = await post('/api/task/create', { section: sectionId, ref });
-    toast(t.existing ? `You already have this one: ${t.title} (added this ${t.why === 'same item' ? 'link' : 'message'} to it)` : 'Planning the task… it will show up in Mission 4');
+    toast(t.existing ? `You already have this one: ${t.title} (added this ${t.why === 'same item' ? 'link' : 'message'} to it)` : 'Planning the task… it will show up in My tasks');
     load(false);
   } catch (e) {
     toast(e.message);
@@ -51,7 +51,7 @@ function tasksPanel() {
         h('b', { title: t.title }, t.title),
         t.priority && h('span', { class: `pill ${pc[t.priority] || ''}` }, t.priority),
         t.due && h('span', { class: 'pill' }, `Due ${t.due}`),
-        t.owner?.id ? window.ownerChip?.(t.owner) : t.status === 'ready' && window.assignMenu ? h('button', { class: 'btn sm ghost', title: 'Give this task to your assistant or a teammate', onclick: (e) => window.assignMenu(e.currentTarget, { kind: 'task', title: t.title, detail: [t.summary, ...(t.steps || []).map((s) => `- ${s.text}`)].filter(Boolean).join('\n'), url: t.source?.url || '', taskId: t.id }) }, '→ Assign') : null,
+        t.owner?.id ? window.ownerChip?.(t.owner) : t.status === 'ready' && window.assignButtons ? window.assignButtons({ kind: 'task', title: t.title, detail: [t.summary, ...(t.steps || []).map((s) => `- ${s.text}`)].filter(Boolean).join('\n'), url: t.source?.url || '', taskId: t.id }, null, 'btn sm ghost') : null,
         t.status === 'ready' && itemActions('work', refs.task(t)),
         h('button', { class: 'ibtn', title: 'Remove task', onclick: () => confirm(`Remove "${t.title}"?`) && updateTask(t.id, { remove: true }) }, '×')),
       t.status === 'planning' && h('div', { class: 'muted small pulse' }, `✦ Reading ${t.source?.label || 'the item'} and its linked docs…`),
@@ -122,7 +122,7 @@ function renderPhone() {
       : h('div', { class: 'ph-acts' },
         p.kind !== 'fyi' && h('button', { class: 'btn sm go', onclick: async () => { const pre = p.draft ? (p.source === 'gmail' ? `Reply to this email with: "${p.draft}"` : `Reply in the thread with: "${p.draft}"`) : ''; if (PANEL_MODE && await shellMain('askAbout', 'slack', pingRef(p), pre)) return; closePhone(); askAbout('slack', pingRef(p), pre); } }, 'Reply'),
         h('button', { class: 'btn sm', onclick: () => { closePhone(); createTask('slack', pingRef(p)); } }, '＋ Task'),
-        p.assignedTo ? window.ownerChip?.(p.assignedTo) : window.assignMenu ? h('button', { class: 'btn sm', title: 'Hand it to your assistant or a teammate', onclick: (e) => window.assignMenu(e.currentTarget, { kind: 'message', title: `${p.who || 'Someone'} (${p.channel || p.source}): ${p.summary}`, detail: p.draft ? `Suggested reply: ${p.draft}` : '', url: p.url, pingId: p.id }, () => pollPings?.()) }, '→ Assign') : null,
+        p.assignedTo ? window.ownerChip?.(p.assignedTo) : window.assignButtons ? window.assignButtons({ kind: 'message', title: `${p.who || 'Someone'} (${p.channel || p.source}): ${p.summary}`, detail: p.draft ? `Suggested reply: ${p.draft}` : '', url: p.url, pingId: p.id }, () => pollPings?.()) : null,
         p.url && h('a', { class: 'btn sm ghost', href: p.url }, 'Open'),
         h('button', { class: 'btn sm ghost ph-ok', title: 'Got it: remove from the phone', 'aria-label': 'Acknowledge and remove', onclick: () => dismissPings([p.id]) }, '✓'))))
       : h('div', { class: 'empty' }, 'No new messages')),

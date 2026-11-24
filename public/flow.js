@@ -89,6 +89,20 @@ const HQ = {
   repaint(el, build) {
     if (!el) return;
     if (HQ._pressIn && el.contains(HQ._pressIn)) { el._pendingRepaint = build; return; }
+    // Someone is typing in a field inside it: wait until they leave the field, then repaint once.
+    const a = document.activeElement;
+    if (a && el.contains(a) && a.matches('input:not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea, select, [contenteditable="true"]')) {
+      el._pendingRepaint = build;
+      if (!el._waitBlur) {
+        el._waitBlur = true;
+        el.addEventListener('focusout', () => setTimeout(() => {
+          el._waitBlur = false;
+          const b = el._pendingRepaint; el._pendingRepaint = null;
+          if (b) HQ.repaint(el, b); // re-checks: still typing in another field here → waits again
+        }, 0), { once: true });
+      }
+      return;
+    }
     const key = (n) => `${n.tagName}.${n.className}`;
     const kept = {};
     for (const n of [el, ...el.querySelectorAll('*')]) if (n.scrollTop > 0) kept[key(n)] ??= n.scrollTop;
@@ -483,7 +497,7 @@ function noteFinished() {
   let any = false;
   for (const c of D.commands || []) {
     if (c.running) seenRunning.add(c.id);
-    else if (seenRunning.delete(c.id) && (any = true)) toast(c.kind === 'task' ? (c.duplicateOf ? `You already have this one: ${c.duplicateOf.title} (added it there)` : c.error ? 'Task planning failed' : 'New task ready in Mission 4') : c.error ? 'AI command failed' : 'AI answered');
+    else if (seenRunning.delete(c.id) && (any = true)) toast(c.kind === 'task' ? (c.duplicateOf ? `You already have this one: ${c.duplicateOf.title} (added it there)` : c.error ? 'Task planning failed' : 'New task ready in My tasks') : c.error ? 'AI command failed' : 'AI answered');
   }
   return any;
 }

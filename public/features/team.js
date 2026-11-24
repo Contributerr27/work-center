@@ -82,7 +82,7 @@
       menu.remove();
       try {
         const r = await post('/api/team/assign', { to, ...item });
-        toast(r.routing ? `${r.to.name} will route it to the right teammate` : `Assigned to ${r.to.name}: on it now`);
+        toast(r.routing ? `${r.to.name} will route it to the right teammate` : `Assigned to ${r.to.name}${r.why ? ` (${r.why})` : ''}: on it now`);
         load(); done?.(r);
       } catch (e) { toast(e.message); }
     };
@@ -99,6 +99,16 @@
     menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
     menu.style.top = `${r.bottom + 6 + hgt > innerHeight - 8 ? Math.max(8, r.top - hgt - 6) : r.bottom + 6}px`;
     setTimeout(() => document.addEventListener('mousedown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', off, true); } }, true), 0);
+  };
+  // → Assign: picks the right teammate on its own; the ▾ next to it opens the menu to choose.
+  window.assignButtons = (item, done, cls = 'btn sm') => {
+    const auto = h('button', { class: `${cls} as-auto`, title: 'Give it to the teammate whose job it is', onclick: async () => {
+      auto.disabled = true; auto.textContent = 'Assigning…';
+      try { const r = await post('/api/team/assign', { to: 'auto', ...item }); toast(r.routing ? `${r.to.name} will route it to the right teammate` : `Assigned to ${r.to.name}${r.why ? ` (${r.why})` : ''}: on it now`); load(); done?.(r); }
+      catch (e) { toast(e.message); auto.disabled = false; auto.textContent = '→ Assign'; }
+    } }, '→ Assign');
+    const pick = h('button', { class: `${cls} as-pick`, title: 'Choose who', 'aria-label': 'Choose who to assign it to', onclick: (e) => window.assignMenu(e.currentTarget, item, done) }, '▾');
+    return h('span', { class: 'as-grp' }, auto, pick);
   };
   window.ownerChip = (o) => (o ? h('button', { class: 'own-chip', title: `${o.name} is on it`, onclick: (e) => { e.stopPropagation(); window.openTeam?.(o.id); } }, avatar(full(o), 'xs'), o.name) : null);
   const full = (o) => (T?.members || []).find((m) => m.id === o.id) || o;

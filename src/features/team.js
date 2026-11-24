@@ -862,13 +862,31 @@ function setup(ctx) {
     return cmd;
   });
 
-  ctx.route('POST', '/api/team/assign', ({ body }) => {
+  // "auto": a quick small-model call picks the teammate whose job it is (the assistant when nobody fits).
+  async function pickOwner(item) {
+    const crew = members().filter((m) => m.enabled !== false);
+    if (!crew.length) return null;
+    const prompt = [
+      `Pick which AI teammate of ${owner} should own this item. Teammates: ${JSON.stringify(crew.map((m) => ({ id: m.id, name: m.name, role: m.role, charter: String(m.charter || '').slice(0, 240) })))}`,
+      `Item: ${JSON.stringify({ title: item.title, detail: String(item.detail || '').slice(0, 1500), url: item.url })}`,
+      'Answer with only one JSON object: { "id": "teammate id", "why": "a few words: why it is theirs" }. Use the assistant (chief of staff) only when nobody else fits. Do not call tools.',
+    ].join('\n');
+    const r = await ctx.ai(prompt, { small: true, cwd: ctx.DATA, timeoutMs: 90_000 });
+    if (r.error) return null;
+    try { const out = require('../aijob').jsonFrom(r.text); const m = crew.find((x) => x.id === out.id); return m ? { m, why: String(out.why || '').slice(0, 120) } : null; } catch { return null; }
+  }
+  ctx.route('POST', '/api/team/assign', async ({ body }) => {
+    let why = '';
+    if (body?.to === 'auto') {
+      const p = await pickOwner(body);
+      if (p) { body.to = p.m.id; why = p.why; } else body.to = 'assistant';
+    }
     const target = body?.to === 'assistant' ? assistant() : members().find((x) => x.id === body?.to);
     if (!target) throw bad(body?.to === 'assistant' ? 'No assistant on the team yet: hire one with Ariadne' : 'No such teammate', 404);
     const kind = ['message', 'task', 'item'].includes(body.kind) ? body.kind : 'item';
     if (!String(body.title || '').trim()) throw bad('Nothing to assign');
     const a = assign(target, { kind, title: body.title, detail: body.detail, url: body.url, pingId: body.pingId, taskId: body.taskId, from: body.to === 'assistant' ? `${first} (to route)` : first });
-    return { assigned: a.id, to: { id: target.id, name: target.name, emoji: target.emoji }, routing: body.to === 'assistant' };
+    return { assigned: a.id, to: { id: target.id, name: target.name, emoji: target.emoji }, routing: body.to === 'assistant', why };
   });
   // A new task picks its own owner (the planning run names one); it starts working on it right away.
   ctx.onCommandFinished((c) => {

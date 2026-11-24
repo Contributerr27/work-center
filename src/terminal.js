@@ -39,73 +39,87 @@ function loadPty() {
 }
 
 const expand = (p) => (p ? p.replace(/^~(?=\/|$)/, os.homedir()) : p);
-const state = { proc: null, buf: '', clients: new Set(), opts: null, cols: 120, rows: 32 };
-
-function broadcast(msg) {
-  for (const ws of state.clients) if (ws.readyState === 1) ws.send(msg);
+// Two sessions, side by side: "ai" (the AI CLI, e.g. claude) and "shell" (your login shell, for things like
+// `gcloud auth login` that open the browser). Each keeps running and replays its scrollback on reconnect.
+const sessions = {};
+let baseOpts = null;
+function session(kind) {
+  const k = kind === 'shell' ? 'shell' : 'ai';
+  if (!sessions[k]) sessions[k] = { kind: k, proc: null, buf: '', clients: new Set(), cols: 120, rows: 32 };
+  return sessions[k];
+}
+function optsFor(st) {
+  if (st.kind === 'shell') return { cwd: '~', command: process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/zsh'), args: process.platform === 'win32' ? [] : ['-l'], env: baseOpts?.env || {} };
+  return baseOpts;
 }
 
-function spawnSession() {
-  if (state.proc) return state.proc;
-  const { cwd, command, args, env } = state.opts;
+function broadcast(st, msg) {
+  for (const ws of st.clients) if (ws.readyState === 1) ws.send(msg);
+}
+
+function spawnSession(st) {
+  if (st.proc) return st.proc;
+  const { cwd, command, args, env } = optsFor(st);
   let dir = expand(cwd) || os.homedir();
   try { if (!fs.statSync(dir).isDirectory()) dir = os.homedir(); } catch { dir = os.homedir(); }
   const procEnv = { ...baseEnv, ...env, TERM: 'xterm-256color', COLORTERM: 'truecolor' };
   delete procEnv.ELECTRON_RUN_AS_NODE; // never leak Electron's node mode into child tools
+  const cmd = typeof command === 'function' ? command() : command;
   let proc;
   try {
-    proc = loadPty().spawn(typeof command === "function" ? command() : command, args, { name: 'xterm-256color', cols: state.cols, rows: state.rows, cwd: dir, env: procEnv });
+    proc = loadPty().spawn(cmd, args, { name: 'xterm-256color', cols: st.cols, rows: st.rows, cwd: dir, env: procEnv });
   } catch (e) {
-    const msg = `\r\n\x1b[31mCould not start ${command}: ${e.message}\x1b[0m\r\n`;
-    state.buf += msg;
-    broadcast(msg);
-    broadcast(JSON.stringify({ t: 'exit', code: -1 }));
+    const msg = `\r\n\x1b[31mCould not start ${cmd}: ${e.message}\x1b[0m\r\n`;
+    st.buf += msg;
+    broadcast(st, msg);
+    broadcast(st, JSON.stringify({ t: 'exit', code: -1 }));
     return null;
   }
-  state.proc = proc;
+  st.proc = proc;
   proc.onData((d) => {
-    state.buf += d;
-    if (state.buf.length > SCROLLBACK * 1.25) state.buf = state.buf.slice(-SCROLLBACK);
-    broadcast(d);
+    st.buf += d;
+    if (st.buf.length > SCROLLBACK * 1.25) st.buf = st.buf.slice(-SCROLLBACK);
+    broadcast(st, d);
   });
   proc.onExit(({ exitCode }) => {
-    if (state.proc !== proc) return;
-    state.proc = null;
+    if (st.proc !== proc) return;
+    st.proc = null;
     const msg = `\r\n\x1b[2m[process exited with code ${exitCode}]\x1b[0m\r\n`;
-    state.buf += msg;
-    broadcast(msg);
-    broadcast(JSON.stringify({ t: 'exit', code: exitCode }));
+    st.buf += msg;
+    broadcast(st, msg);
+    broadcast(st, JSON.stringify({ t: 'exit', code: exitCode }));
   });
   return proc;
 }
 
-function stopTerminal() {
-  const p = state.proc;
-  state.proc = null;
+function stopSession(st) {
+  const p = st.proc;
+  st.proc = null;
   if (p) try { p.kill(); } catch { /* already gone */ }
 }
+function stopTerminal() { for (const st of Object.values(sessions)) stopSession(st); }
 
-function onMessage(raw) {
+function onMessage(st, raw) {
   let m;
   try { m = JSON.parse(String(raw)); } catch { return; }
   if (m.t === 'in' && typeof m.d === 'string') {
-    (state.proc || spawnSession())?.write(m.d);
+    (st.proc || spawnSession(st))?.write(m.d);
   } else if (m.t === 'resize') {
     const cols = Math.max(2, Math.min(1000, m.cols | 0));
     const rows = Math.max(2, Math.min(500, m.rows | 0));
-    state.cols = cols;
-    state.rows = rows;
-    if (state.proc) try { state.proc.resize(cols, rows); } catch { /* exited */ }
+    st.cols = cols;
+    st.rows = rows;
+    if (st.proc) try { st.proc.resize(cols, rows); } catch { /* exited */ }
   } else if (m.t === 'restart') {
-    stopTerminal();
-    state.buf = '\x1b[2J\x1b[3J\x1b[H';
-    broadcast(state.buf);
-    spawnSession();
+    stopSession(st);
+    st.buf = '\x1b[2J\x1b[3J\x1b[H';
+    broadcast(st, st.buf);
+    spawnSession(st);
   }
 }
 
 function attachTerminal(httpServer, { allow, token, cwd, command = 'claude', args = [], env = {} } = {}) {
-  state.opts = { cwd, command, args, env };
+  baseOpts = { cwd, command, args, env };
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
   httpServer.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url, 'http://localhost');
@@ -115,13 +129,14 @@ function attachTerminal(httpServer, { allow, token, cwd, command = 'claude', arg
       socket.destroy();
       return;
     }
+    const st = session(url.searchParams.get('kind'));
     wss.handleUpgrade(req, socket, head, (ws) => {
-      state.clients.add(ws);
-      if (state.buf) ws.send(state.buf);
-      if (!state.proc) spawnSession();
-      ws.on('message', onMessage);
-      ws.on('close', () => state.clients.delete(ws));
-      ws.on('error', () => state.clients.delete(ws));
+      st.clients.add(ws);
+      if (st.buf) ws.send(st.buf);
+      if (!st.proc) spawnSession(st);
+      ws.on('message', (raw) => onMessage(st, raw));
+      ws.on('close', () => st.clients.delete(ws));
+      ws.on('error', () => st.clients.delete(ws));
     });
   });
   return wss;

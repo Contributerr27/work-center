@@ -48,7 +48,8 @@
           H ? h('span', { class: 'hm-streak', title: 'Working days in a row with AI runs or cleared items (weekends do not break it)' }, `🔥 ${H.streak}-day streak`) : null,
           stats?.rank ? h('span', { class: 'hm-rank' }, `★ ${stats.rank.title || stats.rank.name || stats.rank}`) : null)),
       h('div', { class: 'hm-today' },
-        h('b', {}, left ? `${left} of ${FLOW.length} missions left today` : 'Every mission done today'),
+        h('b', {}, (() => { const w = term('step'); const pl = w ? `${w.toLowerCase()}s` : 'steps';
+          return left ? `${left} of ${FLOW.length} ${pl} left today` : w ? `Every ${w.toLowerCase()} done today` : 'All done for today'; })()),
         cur ? h('small', { class: 'muted' }, `Next up: ${cur.name}`) : null,
         h('button', { class: 'btn go hm-go', onclick: goToday }, 'Go to today →')));
   }

@@ -480,3 +480,9 @@ main { overflow-anchor: none; }
 @keyframes md-grow { from { transform: scaleX(0); } }
 @keyframes md-spin-in { from { transform: rotate(-90deg) scale(.85); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .md-stackbar span, .md-bar, .md-donut-ring { animation: none; } }
+
+/* Terminal: Claude | Shell */
+.term-kind { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(127, 127, 127, .15); }
+.term-kind button { border: 0; background: transparent; color: inherit; font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 7px; cursor: pointer; opacity: .75; }
+.term-kind button.on { background: rgba(127, 127, 127, .3); opacity: 1; font-weight: 650; }
+.term-mini { padding: 4px 6px; }

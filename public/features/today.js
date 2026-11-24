@@ -8,6 +8,7 @@
 (() => {
   if (PANEL_MODE) return;
   let TD = null, filter = 'all', showAll = false, pollT = null, PJ = null, pjAt = 0;
+  const DRAFTS = {}; // answers being typed, by question id (kept across refreshes)
   const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { /* no storage */ } return null; };
 
   /* ---------- Lean Today: the step lists (PRs, Jira, Slack…) sit behind "Show all lists" ---------- */
@@ -63,8 +64,12 @@
           h('button', { class: 'btn sm ghost', title: 'You already replied yourself: drop this draft (nothing is sent)', onclick: () => act('/api/team/resolve', { id: it.itemId, decision: 'dismiss', note: 'I already answered this myself; no reply needed.' }, 'Got it: draft dropped') }, '✓ Already answered'),
           h('button', { class: 'btn sm ghost', title: 'Ask for a rewrite', onclick: async () => { const note = await askText('What should change in the reply?', { hint: `${it.member.name} rewrites it for your approval.`, ok: 'Propose' }); if (note && note.trim()) act('/api/team/resolve', { id: it.itemId, decision: 'revise', note: note.trim() }, `${it.member.name} is rewriting it`); } }, 'Propose changes'), open];
       case 'question': {
-        const inp = h('input', { class: 'td-ans', placeholder: 'Answer…', onkeydown: (e) => { if (e.key === 'Enter' && e.target.value.trim()) act('/api/team/resolve', { id: it.itemId, decision: 'answer', answer: e.target.value.trim() }, `Sent to ${it.member.name}`); } });
-        return [inp, h('button', { class: 'btn sm go', onclick: () => inp.value.trim() && act('/api/team/resolve', { id: it.itemId, decision: 'answer', answer: inp.value.trim() }, `Sent to ${it.member.name}`) }, 'Answer')];
+        // The draft survives refreshes (kept per question); Enter sends, Shift+Enter is a new line.
+        const send = () => { const v = (DRAFTS[it.itemId] || '').trim(); if (!v) return; delete DRAFTS[it.itemId]; act('/api/team/resolve', { id: it.itemId, decision: 'answer', answer: v }, `Sent to ${it.member.name}`); };
+        const inp = h('textarea', { class: 'td-ans', rows: 2, placeholder: `Answer ${it.member.name}… (Enter to send)`,
+          oninput: (e) => { DRAFTS[it.itemId] = e.target.value; },
+          onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } } }, DRAFTS[it.itemId] || '');
+        return [inp, h('button', { class: 'btn sm go', onclick: send }, 'Answer')];
       }
       case 'unblock':
         return [open, h('button', { class: 'btn sm go', title: `Tell ${it.member.name} it can move again: it starts a shift now`, onclick: () => act('/api/team/shift', { id: it.member.id }, `${it.member.name} is back at work`) }, 'Done, wake it')];

@@ -179,3 +179,8 @@
 .own-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 3px; border-radius: 20px; border: 1px solid var(--line); background: var(--soft); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .own-chip .tm-av.xs { width: 18px; height: 18px; font-size: 10px; }
 .tm-changed { color: var(--violet, #7c5cff); font-weight: 600; margin-bottom: 2px; }
+
+/* → Assign (auto) with a ▾ to choose */
+.as-grp { display: inline-flex; }
+.as-grp .as-auto { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.as-grp .as-pick { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid rgba(127, 127, 127, .35); padding-left: 7px; padding-right: 7px; }

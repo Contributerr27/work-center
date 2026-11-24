@@ -86,7 +86,7 @@
         h('select', { onchange: (e) => { task = e.target.value; } },
           h('option', { value: '' }, 'No task: just deep work'),
           tasks.map((t) => h('option', { value: t.id, selected: t.id === task }, t.title)))),
-      h('p', { class: 'muted small' }, 'The phone stays quiet except urgent messages; other missions dim.'),
+      h('p', { class: 'muted small' }, 'Messages stay quiet except urgent ones; everything else dims.'),
       h('div', { class: 'fx-acts' },
         h('button', { class: 'btn ghost', onclick: () => HQ.closeOverlay('focus-pick') }, 'Cancel'),
         h('button', { class: 'btn go', onclick: async () => { HQ.closeOverlay('focus-pick'); await act('/api/focus/start', `Focus: ${minutes} min`, { minutes, taskId: task || null }); } }, `▶ Start ${minutes} min`))));

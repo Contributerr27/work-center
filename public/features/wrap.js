@@ -134,7 +134,7 @@
         h('div', { class: 'wr-card' },
           h('div', { class: 'wr-ch' }, h('h4', {}, 'Tomorrow\'s standup'), h('span', { class: 'spacer' }),
             h('button', { class: 'btn sm', onclick: () => copy(standupText(su), 'Standup copied') }, 'Copy standup'),
-            W.date === W.today && h('button', { class: 'btn sm', title: 'Write it into the next standup on the Meetings mission', onclick: toMeetings }, 'Put in Meetings')),
+            W.date === W.today && h('button', { class: 'btn sm', title: 'Write it into your next standup in Meetings', onclick: toMeetings }, 'Put in Meetings')),
           standupNode(su)),
         h('div', { class: 'wr-card' },
           h('div', { class: 'wr-ch' }, h('h4', {}, 'Jira updates'), h('span', { class: 'count' }, ups.length), h('span', { class: 'spacer' }),
@@ -212,7 +212,7 @@
     if (!el || el.hidden) return;
     const d = day();
     const date = viewing || today();
-    HQ.repaint(el, () => h('div', { class: 'wr-box', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Mission summary' },
+    HQ.repaint(el, () => h('div', { class: 'wr-box', role: 'dialog', 'aria-modal': 'true', 'aria-label': term('wrapTitle') },
       h('header', { class: 'wr-top' },
         h('div', {}, h('h2', { class: 'wr-title' }, term('wrapTitle')), h('div', { class: 'wr-date' }, longDate(date))),
         h('span', { class: 'spacer' }),
@@ -226,7 +226,7 @@
   }
 
   /* ---------- header button and the evening offer ---------- */
-  HQ.addButton({ id: 'btn-wrap', label: '🌇 Wrap up', title: 'End-of-day mission summary, standup and worklog', onclick: () => open() });
+  HQ.addButton({ id: 'btn-wrap', label: '🌇 Wrap up', title: 'End-of-day summary, standup and worklog', onclick: () => open() });
 
   function offer() {
     let el = $('wrap-offer');
