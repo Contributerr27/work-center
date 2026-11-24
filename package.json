@@ -13,7 +13,8 @@
     "dist:mac": "electron-builder --mac dir",
     "demo": "node demo/run.js",
     "demo:app": "node demo/run.js --app",
-    "screenshots": "node demo/run.js --no-open --shots"
+    "screenshots": "node demo/run.js --no-open --shots",
+    "test": "node --test"
   },
   "build": {
     "appId": "io.github.sslugic.workcenter",
